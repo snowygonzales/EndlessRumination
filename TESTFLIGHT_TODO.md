@@ -22,7 +22,7 @@
 - [x] Set environment variables: `ANTHROPIC_API_KEY`, `DATABASE_URL`, `JWT_SECRET`
 - [x] Update `ios/EndlessRumination/Services/APIClient.swift` — release `baseURL` points to Railway
 - [x] Health check verified: `curl https://backend-production-5537.up.railway.app/health`
-- [ ] Estimated API cost: ~$0.12 per problem submission (20 Sonnet takes + 1 safety check)
+- [x] Monetization model: Free (5 lenses, Sonnet/Haiku hybrid) / Pro $9.99/mo (all 20 Sonnet)
 - **Production URL**: `https://backend-production-5537.up.railway.app`
 - **Railway project**: https://railway.com/project/30951286-357e-4529-a21c-bb527d62eb13
 
@@ -65,15 +65,17 @@ xcodegen generate
 - [ ] Add a launch screen or splash animation (current `SplashView` works as initial screen)
 - [ ] Add crash reporting (Firebase Crashlytics or native Xcode Organizer)
 - [ ] Test on physical device before uploading
-- [ ] Set up StoreKit 2 subscription products in App Store Connect (for Pro tier)
+- [ ] Set up StoreKit 2 subscription products in App Store Connect ($9.99/mo Pro tier)
 - [ ] Configure StoreKit testing in Xcode for local subscription testing
+- [ ] Integrate ads SDK for free tier (AdMob or similar)
 
 ## Cost Summary
 | Item | Cost |
 |------|------|
 | Apple Developer Program | $99/year |
-| Backend hosting (Railway/Render) | ~$5-15/month |
-| Anthropic API (per submission) | ~$0.12 |
+| Backend hosting (Railway) | ~$5-15/month |
+| Anthropic API — free user submission | ~$0.013 (2 Sonnet + 3 Haiku + safety) |
+| Anthropic API — Pro user submission | ~$0.12 (20 Sonnet + safety) |
 | TestFlight | Free (included with dev program) |
 
 ## Quick Reference

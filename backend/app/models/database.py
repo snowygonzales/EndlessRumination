@@ -72,6 +72,7 @@ class TakeDB(Base):
     lens_index = Column(Integer, nullable=False)
     headline = Column(String, nullable=False)
     body = Column(Text, nullable=False)
+    wise = Column(Boolean, default=True, nullable=False)
     saved = Column(Boolean, default=False, nullable=False)
     created_at = Column(
         DateTime(timezone=True),

@@ -37,12 +37,22 @@ final class AppState {
         return takes.sorted(by: { $0.lensIndex < $1.lensIndex })[currentTakeIndex]
     }
 
-    var totalTakes: Int { 20 }
+    var totalTakes: Int { isPro ? 20 : Lens.freeLensCount }
     var isPro: Bool { subscriptionTier == .pro }
 
     var freeTakesRemaining: Int {
-        max(0, 10 - (currentTakeIndex + 1))
+        max(0, Lens.freeLensCount - (currentTakeIndex + 1))
     }
+
+    var lensIndicesForRequest: [Int] {
+        isPro ? Array(0..<20) : Array(0..<Lens.freeLensCount)
+    }
+
+    #if DEBUG
+    func debugTogglePro() {
+        subscriptionTier = isPro ? .free : .pro
+    }
+    #endif
 
     func reset() {
         problemText = ""

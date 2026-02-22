@@ -15,7 +15,8 @@ from app.models.schemas import (
     TakeResponse,
 )
 from app.services.auth_service import get_current_user, require_user
-from app.services.claude_service import generate_batch_streaming, generate_take
+from app.config import get_settings
+from app.services.claude_service import generate_batch_streaming, generate_take, model_for_lens
 from app.services.rate_limiter import check_rate_limit, increment_usage
 
 router = APIRouter(prefix="/api/v1", tags=["takes"])
@@ -40,7 +41,8 @@ async def generate_single_take(
                 detail=f"Daily take limit reached ({limit['limit']})",
             )
 
-    result = await generate_take(payload.problem, payload.lens_index)
+    model = model_for_lens(payload.lens_index, is_pro)
+    result = await generate_take(payload.problem, payload.lens_index, model=model)
 
     # Increment usage
     if user:
@@ -57,6 +59,7 @@ async def generate_single_take(
             lens_index=result["lens_index"],
             headline=result["headline"],
             body=result["body"],
+            wise=result.get("wise", True),
             saved=True,
         )
         db.add(take)
@@ -89,9 +92,15 @@ async def generate_batch(
         await increment_usage(user_id, "problems")
 
     # Validate lens indices
+    cfg = get_settings()
     indices = payload.lens_indices
     if not indices:
-        indices = list(range(20))
+        indices = list(range(20)) if is_pro else list(range(cfg.free_lens_count))
+
+    # Free users limited to first N lenses
+    if not is_pro:
+        indices = [i for i in indices if i < cfg.free_lens_count]
+
     for idx in indices:
         if not 0 <= idx <= 19:
             raise HTTPException(
@@ -99,19 +108,8 @@ async def generate_batch(
                 detail=f"Invalid lens index: {idx}",
             )
 
-    # Cap takes for free users
-    if not is_pro:
-        take_limit = await check_rate_limit(user_id, False, "takes")
-        remaining = take_limit["remaining"]
-        if remaining <= 0:
-            raise HTTPException(
-                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                detail="Daily take limit reached",
-            )
-        indices = indices[:remaining]
-
     async def event_stream():
-        async for event in generate_batch_streaming(payload.problem, indices):
+        async for event in generate_batch_streaming(payload.problem, indices, is_pro=is_pro):
             yield event
             # Increment take usage per result
             if user and not event.strip().endswith("[DONE]"):
@@ -160,6 +158,7 @@ async def get_history(
                         lens_index=t.lens_index,
                         headline=t.headline,
                         body=t.body,
+                        wise=t.wise,
                     )
                     for t in sorted(p.takes, key=lambda t: t.lens_index)
                 ],

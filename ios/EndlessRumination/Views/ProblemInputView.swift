@@ -19,7 +19,7 @@ struct ProblemInputView: View {
                     Spacer()
 
                     // Pro badge
-                    Text("PRO $1.99")
+                    Text(appState.isPro ? "PRO" : "PRO $9.99")
                         .font(.system(size: 11, weight: .bold))
                         .tracking(1)
                         .textCase(.uppercase)
@@ -28,6 +28,11 @@ struct ProblemInputView: View {
                         .padding(.vertical, 5)
                         .background(ERColors.proGradient)
                         .clipShape(Capsule())
+                        #if DEBUG
+                        .onTapGesture(count: 3) {
+                            appState.debugTogglePro()
+                        }
+                        #endif
                 }
                 .padding(.horizontal, 24)
                 .padding(.top, 20)
@@ -166,7 +171,10 @@ struct ProblemInputView: View {
             isSubmitting = false
 
             // Start streaming takes
-            let stream = await APIClient.shared.generateBatch(problem: appState.problemText)
+            let stream = await APIClient.shared.generateBatch(
+                problem: appState.problemText,
+                lensIndices: appState.lensIndicesForRequest
+            )
             do {
                 for try await take in stream {
                     appState.receiveTake(take)

@@ -5,17 +5,20 @@ struct Take: Identifiable, Codable {
     let lensIndex: Int
     let headline: String
     let body: String
+    let wise: Bool
 
     enum CodingKeys: String, CodingKey {
         case lensIndex = "lens_index"
         case headline
         case body
+        case wise
     }
 
-    init(lensIndex: Int, headline: String, body: String) {
+    init(lensIndex: Int, headline: String, body: String, wise: Bool = true) {
         self.lensIndex = lensIndex
         self.headline = headline
         self.body = body
+        self.wise = wise
     }
 
     init(from decoder: Decoder) throws {
@@ -23,5 +26,6 @@ struct Take: Identifiable, Codable {
         self.lensIndex = try container.decode(Int.self, forKey: .lensIndex)
         self.headline = try container.decode(String.self, forKey: .headline)
         self.body = try container.decode(String.self, forKey: .body)
+        self.wise = (try? container.decode(Bool.self, forKey: .wise)) ?? true
     }
 }

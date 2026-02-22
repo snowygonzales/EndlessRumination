@@ -50,8 +50,10 @@ struct TakesView: View {
             .contentShape(Rectangle())
             .gesture(swipeGesture)
 
-            // Ad banner
-            AdBannerView()
+            // Ad banner (free tier only)
+            if !appState.isPro {
+                AdBannerView()
+            }
         }
     }
 
@@ -69,7 +71,7 @@ struct TakesView: View {
 
             Spacer()
 
-            Text("\(appState.currentTakeIndex + 1) / 20")
+            Text("\(appState.currentTakeIndex + 1) / \(appState.totalTakes)")
                 .font(ERTypography.counter)
                 .foregroundStyle(ERColors.dimText)
                 .padding(.horizontal, 10)
@@ -218,7 +220,7 @@ struct TakesView: View {
         }
 
         // Check if we have more takes
-        guard appState.currentTakeIndex < 19 else { return }
+        guard appState.currentTakeIndex < appState.totalTakes - 1 else { return }
 
         isBusy = true
 

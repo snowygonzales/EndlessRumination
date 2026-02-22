@@ -1,8 +1,11 @@
 # Endless Rumination
 
-> Doom-scroll your worries through 20 AI perspectives that fade forever.
+> Doom-scroll your worries through AI perspectives that fade forever.
 
-A native iOS psychology app (SwiftUI) with a Python backend (FastAPI). Users describe a problem, then scroll through AI-generated "takes" from 20 radically different personas — comedian, stoic philosopher, therapist, your dog, and more. Each take fades forever on scroll unless the user is a Pro subscriber.
+A native iOS psychology app (SwiftUI) with a Python backend (FastAPI). Users describe a problem, then scroll through AI-generated "takes" from radically different personas — comedian, stoic philosopher, therapist, your dog, and more. Each take fades forever on scroll unless the user is a Pro subscriber.
+
+**Free tier**: 5 lenses (2 Sonnet "Wise" + 3 Haiku), 3 submissions/month, ads.
+**Pro ($9.99/mo)**: All 20 lenses on Sonnet, no ads, history saved.
 
 ## Status
 
@@ -98,7 +101,7 @@ EndlessRumination/
 │   │   │   ├── takes.py       ← POST /generate-take, /generate-batch (SSE)
 │   │   │   └── subscription.py← GET /status, POST /verify-receipt
 │   │   ├── services/
-│   │   │   ├── claude_service.py   ← Claude API integration (parallel + streaming)
+│   │   │   ├── claude_service.py   ← Claude API (Sonnet/Haiku hybrid, parallel + SSE)
 │   │   │   ├── safety_service.py   ← SAFE/UNSAFE classification
 │   │   │   ├── rate_limiter.py     ← Redis daily counters (graceful without Redis)
 │   │   │   └── auth_service.py     ← JWT create/decode
@@ -144,14 +147,25 @@ EndlessRumination/
 | `JWT_SECRET` | Production | `change-me-in-production` | JWT signing secret |
 | `DEBUG` | No | `false` | Enable debug logging |
 
+## Monetization Model
+
+| Tier | Lenses | AI Model | Submissions | Ads | Price |
+|------|--------|----------|-------------|-----|-------|
+| Free | 5 (indices 0-4) | 2 Sonnet "Wise" (1,9) + 3 Haiku | 1/day, 3/month | Yes | Free |
+| Pro | All 20 | Sonnet | 50/day | No | $9.99/mo |
+
+- "Wise" badge (sparkle icon) appears on Sonnet-powered takes
+- "Quick take · Powered by Haiku" label on Haiku takes
+- Triple-tap the PRO badge in simulator (DEBUG builds) to toggle Pro status
+
 ## Build Phases
 
 1. **Backend Core** — FastAPI + Claude streaming + safety + auth + rate limiting ✅
 2. **iOS Core** — SwiftUI screens + API client + SSE streaming + swipe mechanics ✅
 3. **Deployment** — Railway backend + app icon + privacy policy ✅
-4. **TestFlight** — Apple Developer account + App Store Connect + archive/upload *(next)*
-5. **Monetization** — StoreKit 2 subscriptions + ads
-6. **Polish** — Haptics, onboarding, App Store listing
+4. **Monetization** — Sonnet/Haiku hybrid, tiered lenses, wise badges, Pro cheat ✅
+5. **TestFlight** — Apple Developer account + App Store Connect + archive/upload *(next)*
+6. **Polish** — StoreKit 2 subscriptions, ads SDK, haptics, onboarding
 
 ## Cost
 
@@ -159,5 +173,6 @@ EndlessRumination/
 |------|------|
 | Apple Developer Program | $99/year |
 | Railway backend hosting | ~$5-15/month |
-| Anthropic API per submission | ~$0.12 (20 takes + safety check) |
+| Anthropic API — free user submission | ~$0.013 (2 Sonnet + 3 Haiku + safety) |
+| Anthropic API — Pro user submission | ~$0.12 (20 Sonnet + safety) |
 | TestFlight distribution | Free |
