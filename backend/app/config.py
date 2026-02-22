@@ -1,5 +1,12 @@
-from pydantic_settings import BaseSettings
+from pathlib import Path
 from functools import lru_cache
+
+from dotenv import load_dotenv
+from pydantic_settings import BaseSettings
+
+# Load .env from backend/ directory before pydantic-settings reads env vars
+_ENV_FILE = Path(__file__).resolve().parent.parent / ".env"
+load_dotenv(_ENV_FILE, override=True)
 
 
 class Settings(BaseSettings):
@@ -29,8 +36,6 @@ class Settings(BaseSettings):
 
     # Batch generation
     parallel_batch_size: int = 5  # Claude calls to fire at once
-
-    model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 
 
 @lru_cache
