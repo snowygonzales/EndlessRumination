@@ -1,5 +1,7 @@
 """Claude API integration — single take + batch streaming."""
 
+from __future__ import annotations
+
 import asyncio
 import json
 from typing import AsyncGenerator

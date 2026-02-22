@@ -1,5 +1,7 @@
 """Redis-backed rate limiting for takes and problems per day."""
 
+from __future__ import annotations
+
 from datetime import datetime, timezone
 
 import redis.asyncio as redis
@@ -11,10 +13,17 @@ settings = get_settings()
 _redis: redis.Redis | None = None
 
 
-async def get_redis() -> redis.Redis:
+async def get_redis() -> redis.Redis | None:
     global _redis
     if _redis is None:
-        _redis = redis.from_url(settings.redis_url, decode_responses=True)
+        if not settings.redis_url or settings.redis_url in ("none", ""):
+            return None
+        try:
+            _redis = redis.from_url(settings.redis_url, decode_responses=True)
+            await _redis.ping()
+        except Exception:
+            _redis = None
+            return None
     return _redis
 
 
@@ -37,6 +46,9 @@ async def check_rate_limit(
         {"allowed": bool, "used": int, "limit": int, "remaining": int}
     """
     r = await get_redis()
+    if r is None:
+        return {"allowed": True, "used": 0, "limit": 999, "remaining": 999}
+
     key = _day_key(resource, user_id)
 
     if resource == "problems":
@@ -58,6 +70,9 @@ async def check_rate_limit(
 async def increment_usage(user_id: str, resource: str = "problems") -> int:
     """Increment usage counter. Returns new count. Key expires at end of day."""
     r = await get_redis()
+    if r is None:
+        return 0
+
     key = _day_key(resource, user_id)
 
     count = await r.incr(key)
@@ -71,6 +86,9 @@ async def increment_usage(user_id: str, resource: str = "problems") -> int:
 async def get_usage(user_id: str, resource: str = "problems") -> int:
     """Get current usage count."""
     r = await get_redis()
+    if r is None:
+        return 0
+
     key = _day_key(resource, user_id)
     current = await r.get(key)
     return int(current) if current else 0

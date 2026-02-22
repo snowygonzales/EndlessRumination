@@ -12,6 +12,8 @@ test.db
 # Environment
 .env
 .env.local
+.venv/
+venv/
 
 # Claude Code
 .claude/
@@ -30,9 +32,8 @@ Thumbs.db
 # iOS
 ios/build/
 ios/DerivedData/
-ios/*.xcworkspace/xcuserdata/
-ios/*.xcodeproj/xcuserdata/
-ios/*.xcodeproj/project.xcworkspace/xcshareddata/IDEWorkspaceChecks.plist
+ios/*.xcodeproj/
+ios/*.xcworkspace/
 
 # Docker
 *.log

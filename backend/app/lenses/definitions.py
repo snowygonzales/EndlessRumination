@@ -3,6 +3,8 @@
 This is the single source of truth for lens configuration.
 """
 
+from __future__ import annotations
+
 FORMAT_INSTRUCTION = """
 RESPOND IN EXACTLY THIS FORMAT:
 First line: A punchy headline under 12 words. No quotes around it.

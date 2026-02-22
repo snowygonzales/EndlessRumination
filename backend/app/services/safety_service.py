@@ -1,5 +1,7 @@
 """Safety screening — server-side via Claude classification."""
 
+from __future__ import annotations
+
 import anthropic
 
 from app.config import get_settings

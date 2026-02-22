@@ -1,0 +1,39 @@
+name: EndlessRumination
+options:
+  bundleIdPrefix: com.endlessrumination
+  deploymentTarget:
+    iOS: "17.0"
+  xcodeVersion: "16.0"
+  generateEmptyDirectories: true
+settings:
+  SWIFT_VERSION: "5.9"
+  MARKETING_VERSION: "1.0.0"
+  CURRENT_PROJECT_VERSION: "1"
+targets:
+  EndlessRumination:
+    type: application
+    platform: iOS
+    sources:
+      - EndlessRumination
+    settings:
+      GENERATE_INFOPLIST_FILE: YES
+      INFOPLIST_FILE: EndlessRumination/Info.plist
+      INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
+      INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents: YES
+      INFOPLIST_KEY_UILaunchScreen_Generation: YES
+      INFOPLIST_KEY_UISupportedInterfaceOrientations: UIInterfaceOrientationPortrait
+      INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad: "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown"
+      INFOPLIST_KEY_CFBundleDisplayName: "Endless Rumination"
+      ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+      ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+      DEVELOPMENT_TEAM: ""
+      CODE_SIGN_STYLE: Automatic
+  EndlessRuminationTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - EndlessRuminationTests
+    settings:
+      GENERATE_INFOPLIST_FILE: YES
+    dependencies:
+      - target: EndlessRumination
