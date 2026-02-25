@@ -82,6 +82,7 @@ xcodebuild -project EndlessRumination.xcodeproj -scheme EndlessRumination \
 | Backend hosting (Railway) | ~$5-15/month |
 | Anthropic API — free user submission | ~$0.013 (2 Sonnet + 3 Haiku + safety) |
 | Anthropic API — Pro user submission | ~$0.12 (20 Sonnet + safety) |
+| Anthropic API — per voice pack (marginal) | ~$0.025 (5 Sonnet) |
 | TestFlight | Free (included with dev program) |
 
 ## Quick Reference
@@ -89,6 +90,6 @@ xcodebuild -project EndlessRumination.xcodeproj -scheme EndlessRumination \
 - **Bundle ID**: `com.endlessrumination.EndlessRumination`
 - **Minimum iOS**: 17.0
 - **Xcode**: 16.0+
-- **Version**: 0.0.1 (build 1)
+- **Version**: 0.0.1 (build 3)
 - **Privacy Policy URL**: https://github.com/snowygonzales/EndlessRumination/blob/master/docs/privacy-policy.md
 - **Support URL**: https://github.com/snowygonzales/EndlessRumination/blob/master/docs/support.md

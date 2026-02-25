@@ -1,12 +1,12 @@
 # CLAUDE.md — Endless Rumination
 
 ## Project Overview
-Native iOS psychology app (SwiftUI) + Python backend (FastAPI). Users describe a problem, then doom-scroll through 20 AI-generated perspectives from different personas. Each perspective fades forever unless user is a Pro subscriber.
+Native iOS psychology app (SwiftUI) + Python backend (FastAPI). Users describe a problem, then doom-scroll through AI-generated perspectives from different personas. Each perspective fades forever unless user is a Pro subscriber. Base lenses (0-19) come with free/Pro tiers; purchasable Voice Packs (20-39) add 5 historical-figure voices each.
 
 ## Key Commands
 - Backend (local): `cd backend && source .venv/bin/activate && uvicorn app.main:app --reload`
 - Backend (Docker): `cd backend && docker-compose up`
-- Backend tests: `cd backend && pytest -v` (21 tests, SQLite + mocked Claude)
+- Backend tests: `cd backend && pytest -v` (35 tests, SQLite + mocked Claude)
 - iOS project: `cd ios && xcodegen generate && open EndlessRumination.xcodeproj`
 - iOS tests: Cmd+U in Xcode (9 tests)
 - Deploy to Railway: `railway up --detach` (from project root)
@@ -14,7 +14,10 @@ Native iOS psychology app (SwiftUI) + Python backend (FastAPI). Users describe a
 ## Architecture
 - SwiftUI iOS 17+ app → FastAPI gateway → Claude Sonnet/Haiku hybrid API
 - Free tier: 5 lenses (2 Sonnet "Wise" at indices 1,9 + 3 Haiku), 3 submissions/month
-- Pro ($9.99/mo): All 20 lenses on Sonnet, 50/day, no ads, history saved
+- Pro ($9.99/mo): All 20 base lenses on Sonnet, 50/day, no ads, history saved
+- Voice Packs ($4.99 each, non-consumable IAP): 4 packs × 5 voices (indices 20-39), all Sonnet
+  - Strategists (20-24), Revolutionaries (25-29), Philosophers (30-34), Creators (35-39)
+  - Pack voices append after base takes in the doom scroll
 - PostgreSQL for users/takes, Redis for rate limiting (optional, degrades gracefully)
 - SSE streaming for real-time take delivery
 - xcodegen for Xcode project generation (project.yml → .xcodeproj)
@@ -31,7 +34,10 @@ Native iOS psychology app (SwiftUI) + Python backend (FastAPI). Users describe a
 - `TESTFLIGHT_TODO.md` — TestFlight readiness checklist with progress
 - `reference/mockup.jsx` — React prototype with exact design specs (DO NOT build React, extract design only)
 - `reference/sample_takes.json` — Quality bar for AI-generated takes
-- `backend/app/lenses/definitions.py` — All 20 lens system prompts (source of truth)
+- `backend/app/lenses/definitions.py` — Base 20 lens system prompts (indices 0-19)
+- `backend/app/lenses/voice_packs.py` — Voice pack definitions (indices 20-39, 4 packs × 5 voices)
+- `ios/EndlessRumination/Models/VoicePack.swift` — iOS voice pack model with all pack/voice data
+- `ios/EndlessRumination/Views/ShopView.swift` — Voice Pack Shop UI
 - `ios/project.yml` — xcodegen config (source of truth for Xcode project)
 - `railway.toml` — Railway deployment config
 
@@ -40,9 +46,10 @@ Native iOS psychology app (SwiftUI) + Python backend (FastAPI). Users describe a
 - Python: FastAPI, async everywhere, type hints, Pydantic models, `from __future__ import annotations` (Python 3.9 compat)
 - All lens system prompts end with the standard format instruction (see KICKOFF.md)
 - Color values defined in KICKOFF.md are authoritative — match exactly
-- API cost: ~$0.013/free submission (2 Sonnet + 3 Haiku), ~$0.12/Pro submission (20 Sonnet)
-- "Wise" badge on Sonnet takes, "Quick take · Powered by Haiku" on Haiku takes
-- Triple-tap PRO badge in DEBUG builds to toggle Pro status (simulator cheat)
+- API cost: ~$0.013/free submission (2 Sonnet + 3 Haiku), ~$0.12/Pro submission (20 Sonnet), ~$0.025 per pack (5 Sonnet)
+- "Wise" badge on Sonnet takes (including all pack voices), "Quick take · Powered by Haiku" on Haiku takes
+- Triple-tap Shop button in DEBUG builds to toggle Pro status (simulator cheat)
+- Voice pack indices 20-39 extend the base lens system; `Lens.displayInfo(at:)` provides unified lookup
 
 ## What NOT to Do
 - Don't build a React/web app — this is native iOS
