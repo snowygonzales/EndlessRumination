@@ -10,7 +10,7 @@
 - [x] Run `xcodegen generate` to regenerate the project
 - [x] Open project in Xcode → Signing & Capabilities → confirm "Automatically manage signing" is checked
 - [x] Select your team from the dropdown
-- [x] Verify bundle ID `com.endlessrumination.EndlessRumination` is available (change if taken)
+- [x] Verify bundle ID `com.endlessrumination.EndlessRumination` is available
 
 ## 3. App Icon ✅
 - [x] Create a 1024×1024 app icon (single size, Xcode auto-generates all variants)
@@ -26,48 +26,54 @@
 - **Production URL**: `https://backend-production-5537.up.railway.app`
 - **Railway project**: https://railway.com/project/30951286-357e-4529-a21c-bb527d62eb13
 
-## 5. App Store Connect Setup (in progress)
+## 5. App Store Connect Setup ✅
 - [x] Log in to [App Store Connect](https://appstoreconnect.apple.com)
 - [x] Create a new app: **Endless Rumination**
 - [x] Select iOS platform, your bundle ID, and SKU (`endlessrumination001`)
-- [ ] Fill in required metadata:
-  - [x] App name, subtitle, category (Health & Fitness or Lifestyle)
+- [x] Fill in required metadata:
+  - [x] App name, subtitle, category (Health & Fitness)
   - [x] Description, keywords, support URL
-  - [ ] Screenshots (6.7" iPhone 15 Pro Max + 6.5" iPhone 11 Pro Max minimum)
-  - [ ] Age rating questionnaire (likely 17+ due to mental health content)
+  - [x] Screenshots (6.7" + 6.5" resized from simulator)
+  - [x] Age rating questionnaire
+  - [x] Encryption declaration (None)
 
 ## 6. Privacy Policy ✅
 - [x] Created privacy policy at `docs/privacy-policy.md`
 - [x] Discloses: data collected (problem text sent to API), third-party services (Anthropic Claude API)
-- [ ] Add the URL to App Store Connect under "App Privacy"
-- [ ] Complete the App Privacy questionnaire in App Store Connect
+- [x] Add the URL to App Store Connect under "App Privacy"
+- [x] Complete the App Privacy questionnaire in App Store Connect
 - **Privacy Policy URL**: https://github.com/snowygonzales/EndlessRumination/blob/master/docs/privacy-policy.md
 
-## 7. Archive & Upload
-```bash
-# From ios/ directory:
-xcodegen generate
-```
-- [ ] In Xcode: Product → Archive (select "Any iOS Device" as destination)
-- [ ] In Organizer window: click "Distribute App" → App Store Connect → Upload
-- [ ] Wait for processing (5-30 minutes, you'll get an email)
+## 7. Archive & Upload ✅
+- [x] `xcodegen generate` with iPad orientations fix
+- [x] Registered physical device for provisioning profiles
+- [x] In Xcode: Product → Archive (generic iOS device)
+- [x] In Organizer: Distribute App → App Store Connect → Upload
+- [x] Build processed successfully
 
-## 8. TestFlight Configuration
-- [ ] In App Store Connect → TestFlight tab, your build should appear after processing
-- [ ] Add **internal testers** (up to 100, must be App Store Connect users)
-- [ ] For **external testers** (up to 10,000):
-  - [ ] Create a test group
-  - [ ] Fill in beta test info (what to test, contact email)
-  - [ ] Submit for **Beta App Review** (usually 24-48 hours first time)
-- [ ] Share the TestFlight invite link with testers
+## 8. TestFlight ✅
+- [x] Build appeared in App Store Connect → TestFlight tab
+- [x] Internal testing — app installed and verified on physical device
+- [x] App runs, delivers perspectives, icon displays correctly
+- [ ] External testers (optional): create group, submit for Beta App Review
 
-## 9. Optional but Recommended
-- [ ] Add a launch screen or splash animation (current `SplashView` works as initial screen)
-- [ ] Add crash reporting (Firebase Crashlytics or native Xcode Organizer)
-- [ ] Test on physical device before uploading
+## 9. Remaining for App Store Release
 - [ ] Set up StoreKit 2 subscription products in App Store Connect ($9.99/mo Pro tier)
 - [ ] Configure StoreKit testing in Xcode for local subscription testing
 - [ ] Integrate ads SDK for free tier (AdMob or similar)
+- [ ] Add crash reporting (Firebase Crashlytics or native Xcode Organizer)
+- [ ] Proper App Store screenshots from physical device
+- [ ] Submit for full App Store Review
+
+## Build Pipeline
+```bash
+# From ios/ directory:
+xcodegen generate
+xcodebuild -project EndlessRumination.xcodeproj -scheme EndlessRumination \
+  -destination 'generic/platform=iOS' -configuration Release \
+  archive -archivePath build/EndlessRumination.xcarchive -allowProvisioningUpdates
+# Then: open build/EndlessRumination.xcarchive → Distribute App → App Store Connect → Upload
+```
 
 ## Cost Summary
 | Item | Cost |
@@ -79,9 +85,10 @@ xcodegen generate
 | TestFlight | Free (included with dev program) |
 
 ## Quick Reference
-- **Team ID location**: developer.apple.com → Account → Membership
+- **Team ID**: R6N5B4SDWH
 - **Bundle ID**: `com.endlessrumination.EndlessRumination`
 - **Minimum iOS**: 17.0
 - **Xcode**: 16.0+
+- **Version**: 0.0.1 (build 1)
 - **Privacy Policy URL**: https://github.com/snowygonzales/EndlessRumination/blob/master/docs/privacy-policy.md
 - **Support URL**: https://github.com/snowygonzales/EndlessRumination/blob/master/docs/support.md
