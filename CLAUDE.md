@@ -23,6 +23,7 @@ Native iOS psychology app (SwiftUI) + Python backend (FastAPI). Users describe a
 - **Production API**: https://backend-production-5537.up.railway.app
 - **Railway dashboard**: https://railway.com/project/30951286-357e-4529-a21c-bb527d62eb13
 - **Privacy policy**: https://github.com/snowygonzales/EndlessRumination/blob/master/docs/privacy-policy.md
+- **Support page**: https://github.com/snowygonzales/EndlessRumination/blob/master/docs/support.md
 - iOS debug builds → localhost:8000, release builds → Railway URL
 
 ## Important Files

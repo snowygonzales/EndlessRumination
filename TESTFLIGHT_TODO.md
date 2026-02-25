@@ -1,16 +1,16 @@
 # TestFlight Readiness Checklist
 
-## 1. Apple Developer Account
-- [ ] Enroll in Apple Developer Program ($99/year) at [developer.apple.com](https://developer.apple.com/programs/enroll/)
-- [ ] Wait for enrollment approval (usually 24-48 hours)
-- [ ] Note your **Team ID** from Membership details
+## 1. Apple Developer Account ✅
+- [x] Enroll in Apple Developer Program ($99/year) at [developer.apple.com](https://developer.apple.com/programs/enroll/)
+- [x] Wait for enrollment approval (usually 24-48 hours)
+- [x] Note your **Team ID** from Membership details
 
-## 2. Xcode Signing Configuration
-- [ ] Open `ios/project.yml` and set `DEVELOPMENT_TEAM` to your Team ID
-- [ ] Run `xcodegen generate` to regenerate the project
-- [ ] Open project in Xcode → Signing & Capabilities → confirm "Automatically manage signing" is checked
-- [ ] Select your team from the dropdown
-- [ ] Verify bundle ID `com.endlessrumination.EndlessRumination` is available (change if taken)
+## 2. Xcode Signing Configuration ✅
+- [x] Open `ios/project.yml` and set `DEVELOPMENT_TEAM` to your Team ID
+- [x] Run `xcodegen generate` to regenerate the project
+- [x] Open project in Xcode → Signing & Capabilities → confirm "Automatically manage signing" is checked
+- [x] Select your team from the dropdown
+- [x] Verify bundle ID `com.endlessrumination.EndlessRumination` is available (change if taken)
 
 ## 3. App Icon ✅
 - [x] Create a 1024×1024 app icon (single size, Xcode auto-generates all variants)
@@ -26,13 +26,13 @@
 - **Production URL**: `https://backend-production-5537.up.railway.app`
 - **Railway project**: https://railway.com/project/30951286-357e-4529-a21c-bb527d62eb13
 
-## 5. App Store Connect Setup
-- [ ] Log in to [App Store Connect](https://appstoreconnect.apple.com)
-- [ ] Create a new app: **Endless Rumination**
-- [ ] Select iOS platform, your bundle ID, and SKU (e.g., `endlessrumination001`)
+## 5. App Store Connect Setup (in progress)
+- [x] Log in to [App Store Connect](https://appstoreconnect.apple.com)
+- [x] Create a new app: **Endless Rumination**
+- [x] Select iOS platform, your bundle ID, and SKU (`endlessrumination001`)
 - [ ] Fill in required metadata:
-  - [ ] App name, subtitle, category (Health & Fitness or Lifestyle)
-  - [ ] Description, keywords, support URL
+  - [x] App name, subtitle, category (Health & Fitness or Lifestyle)
+  - [x] Description, keywords, support URL
   - [ ] Screenshots (6.7" iPhone 15 Pro Max + 6.5" iPhone 11 Pro Max minimum)
   - [ ] Age rating questionnaire (likely 17+ due to mental health content)
 
@@ -83,3 +83,5 @@ xcodegen generate
 - **Bundle ID**: `com.endlessrumination.EndlessRumination`
 - **Minimum iOS**: 17.0
 - **Xcode**: 16.0+
+- **Privacy Policy URL**: https://github.com/snowygonzales/EndlessRumination/blob/master/docs/privacy-policy.md
+- **Support URL**: https://github.com/snowygonzales/EndlessRumination/blob/master/docs/support.md
