@@ -8,7 +8,7 @@ options:
 settings:
   SWIFT_VERSION: "5.9"
   MARKETING_VERSION: "0.0.1"
-  CURRENT_PROJECT_VERSION: "1"
+  CURRENT_PROJECT_VERSION: "2"
 targets:
   EndlessRumination:
     type: application
@@ -37,3 +37,17 @@ targets:
       GENERATE_INFOPLIST_FILE: YES
     dependencies:
       - target: EndlessRumination
+schemes:
+  EndlessRumination:
+    build:
+      targets:
+        EndlessRumination: all
+        EndlessRuminationTests: [test]
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+        - EndlessRuminationTests
+    archive:
+      config: Release
