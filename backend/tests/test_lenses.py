@@ -36,7 +36,14 @@ def test_get_lens_invalid():
     with pytest.raises(ValueError):
         get_lens(-1)
     with pytest.raises(ValueError):
-        get_lens(20)
+        get_lens(40)
+
+
+def test_get_lens_delegates_to_voice_packs():
+    lens = get_lens(20)
+    assert lens["name"] == "Dale Carnegie"
+    lens = get_lens(39)
+    assert lens["name"] == "Frida Kahlo"
 
 
 def test_get_all_lenses():

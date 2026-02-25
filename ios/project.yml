@@ -45,8 +45,10 @@ schemes:
         EndlessRuminationTests: [test]
     run:
       config: Debug
+      storeKitConfiguration: EndlessRumination/EndlessRumination.storekit
     test:
       config: Debug
+      storeKitConfiguration: EndlessRumination/EndlessRumination.storekit
       targets:
         - EndlessRuminationTests
     archive:

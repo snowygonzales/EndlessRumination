@@ -28,4 +28,10 @@ struct Take: Identifiable, Codable {
         self.body = try container.decode(String.self, forKey: .body)
         self.wise = (try? container.decode(Bool.self, forKey: .wise)) ?? true
     }
+
+    /// Whether this take comes from a purchased voice pack (index >= 20).
+    var isPackVoice: Bool { lensIndex >= 20 }
+
+    /// The pack name this voice belongs to, if it's a pack voice.
+    var packName: String? { VoicePack.pack(forVoiceIndex: lensIndex)?.name }
 }

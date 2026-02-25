@@ -21,12 +21,13 @@ class ProblemInput(BaseModel):
 
 class GenerateTakeRequest(BaseModel):
     problem: str = Field(..., min_length=1, max_length=5000)
-    lens_index: int = Field(..., ge=0, le=19)
+    lens_index: int = Field(..., ge=0, le=39)
 
 
 class GenerateBatchRequest(BaseModel):
     problem: str = Field(..., min_length=1, max_length=5000)
     lens_indices: list[int] = Field(default_factory=lambda: list(range(20)))
+    owned_pack_ids: list[str] = Field(default_factory=list)
 
 
 class RegisterRequest(BaseModel):

@@ -26,7 +26,7 @@ async def test_generate_take_invalid_lens(client: AsyncClient):
         "/api/v1/generate-take",
         json={
             "problem": "test problem text here",
-            "lens_index": 25,
+            "lens_index": 40,
         },
     )
     assert response.status_code == 422

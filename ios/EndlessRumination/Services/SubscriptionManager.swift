@@ -4,10 +4,16 @@ import StoreKit
 @Observable
 final class SubscriptionManager {
     private(set) var proProduct: Product?
+    private(set) var packProducts: [String: Product] = [:]
     private(set) var purchaseState: PurchaseState = .idle
     private(set) var isProSubscribed: Bool = false
+    private(set) var ownedPackIDs: Set<String> = []
 
     static let proMonthlyID = "com.endlessrumination.pro.monthly"
+
+    static let packProductIDs: Set<String> = Set(VoicePack.all.map(\.productID))
+
+    static let allProductIDs: Set<String> = Set([proMonthlyID]).union(packProductIDs)
 
     private var updateListenerTask: Task<Void, Never>?
 
@@ -24,7 +30,7 @@ final class SubscriptionManager {
         await checkCurrentEntitlements()
     }
 
-    // MARK: - Purchase
+    // MARK: - Pro Purchase
 
     func purchase() async {
         guard let product = proProduct else { return }
@@ -53,6 +59,48 @@ final class SubscriptionManager {
         }
     }
 
+    // MARK: - Pack Purchase
+
+    func purchasePack(_ productID: String) async -> Bool {
+        guard let product = packProducts[productID] else { return false }
+        purchaseState = .purchasing
+
+        do {
+            let result = try await product.purchase()
+            switch result {
+            case .success(let verification):
+                let transaction = try checkVerified(verification)
+                await transaction.finish()
+                ownedPackIDs.insert(productID)
+                purchaseState = .purchased
+                return true
+
+            case .userCancelled, .pending:
+                purchaseState = .idle
+                return false
+
+            @unknown default:
+                purchaseState = .idle
+                return false
+            }
+        } catch {
+            purchaseState = .failed(error.localizedDescription)
+            return false
+        }
+    }
+
+    // MARK: - Pack Helpers
+
+    func isPackOwned(_ productID: String) -> Bool {
+        ownedPackIDs.contains(productID)
+    }
+
+    var ownedPackVoiceIndices: [Int] {
+        VoicePack.all
+            .filter { ownedPackIDs.contains($0.productID) }
+            .flatMap(\.voiceIndices)
+    }
+
     // MARK: - Restore
 
     func restorePurchases() async {
@@ -64,8 +112,14 @@ final class SubscriptionManager {
 
     private func loadProducts() async {
         do {
-            let products = try await Product.products(for: [Self.proMonthlyID])
-            proProduct = products.first
+            let products = try await Product.products(for: Self.allProductIDs)
+            for product in products {
+                if product.id == Self.proMonthlyID {
+                    proProduct = product
+                } else if Self.packProductIDs.contains(product.id) {
+                    packProducts[product.id] = product
+                }
+            }
         } catch {
             // Product fetch failed — user stays on free tier
         }
@@ -73,15 +127,21 @@ final class SubscriptionManager {
 
     private func checkCurrentEntitlements() async {
         var hasProEntitlement = false
+        var ownedPacks: Set<String> = []
+
         for await result in Transaction.currentEntitlements {
             if case .verified(let transaction) = result,
-               transaction.productID == Self.proMonthlyID,
                transaction.revocationDate == nil {
-                hasProEntitlement = true
-                break
+                if transaction.productID == Self.proMonthlyID {
+                    hasProEntitlement = true
+                } else if Self.packProductIDs.contains(transaction.productID) {
+                    ownedPacks.insert(transaction.productID)
+                }
             }
         }
+
         isProSubscribed = hasProEntitlement
+        ownedPackIDs = ownedPacks
     }
 
     private func listenForTransactionUpdates() {

@@ -50,5 +50,10 @@ struct ContentView: View {
                 .environment(appState)
                 .environment(subscriptionManager)
         }
+        .sheet(isPresented: $state.showShop) {
+            ShopView()
+                .environment(appState)
+                .environment(subscriptionManager)
+        }
     }
 }

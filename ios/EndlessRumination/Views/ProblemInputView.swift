@@ -18,8 +18,14 @@ struct ProblemInputView: View {
 
                     Spacer()
 
-                    // Pro badge
-                    Text(appState.isPro ? "PRO" : "PRO $9.99")
+                    // Shop button
+                    Button {
+                        appState.showShop = true
+                    } label: {
+                        HStack(spacing: 4) {
+                            Text("\u{2726}")
+                            Text("Shop")
+                        }
                         .font(.system(size: 11, weight: .bold))
                         .tracking(1)
                         .textCase(.uppercase)
@@ -28,16 +34,12 @@ struct ProblemInputView: View {
                         .padding(.vertical, 5)
                         .background(ERColors.proGradient)
                         .clipShape(Capsule())
-                        .onTapGesture {
-                            if !appState.isPro {
-                                appState.showPaywall = true
-                            }
-                        }
-                        #if DEBUG
-                        .onTapGesture(count: 3) {
-                            appState.debugTogglePro()
-                        }
-                        #endif
+                    }
+                    #if DEBUG
+                    .onTapGesture(count: 3) {
+                        appState.debugTogglePro()
+                    }
+                    #endif
                 }
                 .padding(.horizontal, 24)
                 .padding(.top, 20)
@@ -178,7 +180,8 @@ struct ProblemInputView: View {
             // Start streaming takes
             let stream = await APIClient.shared.generateBatch(
                 problem: appState.problemText,
-                lensIndices: appState.lensIndicesForRequest
+                lensIndices: appState.lensIndicesForRequest,
+                ownedPackIDs: appState.ownedPackProductIDs
             )
             do {
                 for try await take in stream {

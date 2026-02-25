@@ -42,13 +42,14 @@ actor APIClient {
 
     // MARK: - Takes (SSE Streaming)
 
-    func generateBatch(problem: String, lensIndices: [Int] = Array(0..<20)) -> AsyncThrowingStream<Take, Error> {
+    func generateBatch(problem: String, lensIndices: [Int] = Array(0..<20), ownedPackIDs: [String] = []) -> AsyncThrowingStream<Take, Error> {
         AsyncThrowingStream { continuation in
             Task {
                 do {
                     let body: [String: Any] = [
                         "problem": problem,
                         "lens_indices": lensIndices,
+                        "owned_pack_ids": ownedPackIDs,
                     ]
                     let bodyData = try JSONSerialization.data(withJSONObject: body)
 

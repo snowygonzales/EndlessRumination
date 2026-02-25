@@ -18,6 +18,7 @@ from app.services.auth_service import get_current_user, require_user
 from app.config import get_settings
 from app.services.claude_service import generate_batch_streaming, generate_take, model_for_lens
 from app.services.rate_limiter import check_rate_limit, increment_usage
+from app.lenses.voice_packs import get_all_packs, get_pack_for_index, is_pack_index
 
 router = APIRouter(prefix="/api/v1", tags=["takes"])
 
@@ -97,16 +98,32 @@ async def generate_batch(
     if not indices:
         indices = list(range(20)) if is_pro else list(range(cfg.free_lens_count))
 
-    # Free users limited to first N lenses
-    if not is_pro:
-        indices = [i for i in indices if i < cfg.free_lens_count]
+    # Separate base and pack indices
+    base_indices = [i for i in indices if 0 <= i <= 19]
+    pack_indices = [i for i in indices if i >= 20]
 
+    # Validate all indices
     for idx in indices:
-        if not 0 <= idx <= 19:
+        if 0 <= idx <= 19:
+            continue
+        elif is_pack_index(idx):
+            required_pack = get_pack_for_index(idx)
+            if required_pack not in payload.owned_pack_ids:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail=f"Voice index {idx} requires pack purchase",
+                )
+        else:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail=f"Invalid lens index: {idx}",
             )
+
+    # Free users limited to first N base lenses, but keep owned pack voices
+    if not is_pro:
+        base_indices = [i for i in base_indices if i < cfg.free_lens_count]
+
+    indices = base_indices + pack_indices
 
     async def event_stream():
         async for event in generate_batch_streaming(payload.problem, indices, is_pro=is_pro):
@@ -166,3 +183,30 @@ async def get_history(
             for p in problems
         ]
     }
+
+
+@router.get("/voice-packs")
+async def list_voice_packs():
+    """Return all available voice packs with metadata (no system prompts)."""
+    packs = get_all_packs()
+    return [
+        {
+            "pack_id": p["pack_id"],
+            "name": p["name"],
+            "subtitle": p["subtitle"],
+            "icon": p["icon"],
+            "color": p["color"],
+            "product_id": p["product_id"],
+            "voices": [
+                {
+                    "index": v["index"],
+                    "name": v["name"],
+                    "years": v["years"],
+                    "emoji": v["emoji"],
+                    "color": v["color"],
+                }
+                for v in p["voices"]
+            ],
+        }
+        for p in packs
+    ]

@@ -86,8 +86,7 @@ struct TakesView: View {
     // MARK: - Take Content
 
     private func takeContent(take: Take) -> some View {
-        let lens = Lens.lens(at: take.lensIndex)
-        return TakeCardView(take: take, lens: lens)
+        TakeCardView(take: take)
             .padding(.horizontal, 28)
             .padding(.top, 24)
             .padding(.bottom, 70)

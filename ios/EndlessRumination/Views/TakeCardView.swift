@@ -2,28 +2,31 @@ import SwiftUI
 
 struct TakeCardView: View {
     let take: Take
-    let lens: Lens
+
+    private var display: (name: String, emoji: String, color: Color, bgColor: Color) {
+        Lens.displayInfo(at: take.lensIndex)
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            // Lens badge + Wise indicator
+            // Lens badge + Wise indicator + Pack badge
             HStack(spacing: 8) {
-                // Lens name badge
+                // Voice name badge
                 HStack(spacing: 8) {
-                    Text(lens.emoji)
+                    Text(display.emoji)
                         .font(.system(size: 12))
-                    Text(lens.name.uppercased())
+                    Text(display.name.uppercased())
                         .font(.system(size: 12, weight: .bold))
                         .tracking(2)
-                        .foregroundStyle(lens.color)
+                        .foregroundStyle(display.color)
                 }
                 .padding(.horizontal, 14)
                 .padding(.vertical, 6)
-                .background(lens.bgColor)
+                .background(display.bgColor)
                 .clipShape(Capsule())
 
-                // Wise badge for Sonnet-powered takes
-                if take.wise {
+                // Wise badge for Sonnet-powered takes (all pack voices are Sonnet)
+                if take.wise || take.isPackVoice {
                     HStack(spacing: 4) {
                         Image(systemName: "sparkles")
                             .font(.system(size: 9))
@@ -36,6 +39,18 @@ struct TakeCardView: View {
                     .padding(.vertical, 5)
                     .background(ERColors.accentGold.opacity(0.12))
                     .clipShape(Capsule())
+                }
+
+                // Pack name badge
+                if let packName = take.packName {
+                    Text(packName.uppercased())
+                        .font(.system(size: 9, weight: .bold))
+                        .tracking(1.5)
+                        .foregroundStyle(display.color.opacity(0.7))
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(display.color.opacity(0.08))
+                        .clipShape(Capsule())
                 }
             }
 

@@ -21,6 +21,7 @@ final class AppState {
     var subscriptionTier: SubscriptionTier = .free
     var subscriptionManager: SubscriptionManager?
     var showPaywall: Bool = false
+    var showShop: Bool = false
 
     var wordCount: Int {
         problemText.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -39,7 +40,11 @@ final class AppState {
         return takes.sorted(by: { $0.lensIndex < $1.lensIndex })[currentTakeIndex]
     }
 
-    var totalTakes: Int { isPro ? 20 : Lens.freeLensCount }
+    var totalTakes: Int {
+        let baseTakes = isPro ? 20 : Lens.freeLensCount
+        let packTakes = subscriptionManager?.ownedPackVoiceIndices.count ?? 0
+        return baseTakes + packTakes
+    }
     var isPro: Bool {
         #if DEBUG
         if subscriptionTier == .pro { return true }
@@ -52,7 +57,13 @@ final class AppState {
     }
 
     var lensIndicesForRequest: [Int] {
-        isPro ? Array(0..<20) : Array(0..<Lens.freeLensCount)
+        let baseIndices = isPro ? Array(0..<20) : Array(0..<Lens.freeLensCount)
+        let packIndices = subscriptionManager?.ownedPackVoiceIndices ?? []
+        return baseIndices + packIndices
+    }
+
+    var ownedPackProductIDs: [String] {
+        Array(subscriptionManager?.ownedPackIDs ?? [])
     }
 
     #if DEBUG

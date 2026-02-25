@@ -58,8 +58,8 @@
 - [ ] External testers (optional): create group, submit for Beta App Review
 
 ## 9. Remaining for App Store Release
-- [ ] Set up StoreKit 2 subscription products in App Store Connect ($9.99/mo Pro tier)
-- [ ] Configure StoreKit testing in Xcode for local subscription testing
+- [x] Set up StoreKit 2 subscription products in App Store Connect ($9.99/mo Pro tier)
+- [x] Configure StoreKit testing in Xcode for local subscription testing
 - [ ] Integrate ads SDK for free tier (AdMob or similar)
 - [ ] Add crash reporting (Firebase Crashlytics or native Xcode Organizer)
 - [ ] Proper App Store screenshots from physical device

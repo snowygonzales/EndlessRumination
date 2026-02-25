@@ -4,7 +4,66 @@
 
   ],
   "products" : [
-
+    {
+      "displayPrice" : "4.99",
+      "familyShareable" : false,
+      "internalID" : "com.endlessrumination.pack.strategists",
+      "localizations" : [
+        {
+          "description" : "Carnegie, Machiavelli, Sun Tzu, Franklin, Barnum",
+          "displayName" : "The Strategists",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "com.endlessrumination.pack.strategists",
+      "referenceName" : "Strategists Pack",
+      "type" : "NonConsumable"
+    },
+    {
+      "displayPrice" : "4.99",
+      "familyShareable" : false,
+      "internalID" : "com.endlessrumination.pack.revolutionaries",
+      "localizations" : [
+        {
+          "description" : "Lenin, Wilde, Twain, Freud, Cleopatra",
+          "displayName" : "The Revolutionaries",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "com.endlessrumination.pack.revolutionaries",
+      "referenceName" : "Revolutionaries Pack",
+      "type" : "NonConsumable"
+    },
+    {
+      "displayPrice" : "4.99",
+      "familyShareable" : false,
+      "internalID" : "com.endlessrumination.pack.philosophers",
+      "localizations" : [
+        {
+          "description" : "Kant, Nietzsche, Kierkegaard, Epictetus, Lao Tzu",
+          "displayName" : "The Philosophers",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "com.endlessrumination.pack.philosophers",
+      "referenceName" : "Philosophers Pack",
+      "type" : "NonConsumable"
+    },
+    {
+      "displayPrice" : "4.99",
+      "familyShareable" : false,
+      "internalID" : "com.endlessrumination.pack.creators",
+      "localizations" : [
+        {
+          "description" : "Da Vinci, Dickinson, Musashi, Whitman, Kahlo",
+          "displayName" : "The Creators",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "com.endlessrumination.pack.creators",
+      "referenceName" : "Creators Pack",
+      "type" : "NonConsumable"
+    }
   ],
   "settings" : {
     "_applicationInternalID" : "6759647755",

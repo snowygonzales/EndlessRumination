@@ -284,10 +284,11 @@ LENSES = [
 
 
 def get_lens(index: int) -> dict:
-    """Get a lens definition by index (0-19)."""
-    if not 0 <= index <= 19:
-        raise ValueError(f"Lens index must be 0-19, got {index}")
-    return LENSES[index]
+    """Get a lens or voice pack voice by index (0-19 base, 20-39 packs)."""
+    if 0 <= index <= 19:
+        return LENSES[index]
+    from app.lenses.voice_packs import get_voice
+    return get_voice(index)
 
 
 def get_all_lenses() -> list[dict]:

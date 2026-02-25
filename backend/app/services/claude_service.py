@@ -45,9 +45,11 @@ def _parse_take(text: str) -> dict:
 def model_for_lens(lens_index: int, is_pro: bool) -> str:
     """Return the Claude model to use for a given lens and user tier.
 
-    Pro users always get Sonnet. Free users get Sonnet for "Wise" lenses,
-    Haiku for the rest.
+    Pack voices (>=20) always use Sonnet. Pro users always get Sonnet.
+    Free users get Sonnet for "Wise" lenses, Haiku for the rest.
     """
+    if lens_index >= 20:
+        return settings.claude_model_sonnet
     if is_pro:
         return settings.claude_model_sonnet
     if lens_index in settings.free_sonnet_lens_indices:

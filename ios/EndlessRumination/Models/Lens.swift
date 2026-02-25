@@ -51,4 +51,17 @@ extension Lens {
     static func lens(at index: Int) -> Lens {
         all[index % all.count]
     }
+
+    /// Unified display info for both base lenses (0-19) and pack voices (20-39).
+    static func displayInfo(at index: Int) -> (name: String, emoji: String, color: Color, bgColor: Color) {
+        if index < all.count {
+            let l = all[index]
+            return (l.name, l.emoji, l.color, l.bgColor)
+        }
+        if let v = VoicePack.voice(at: index) {
+            return (v.name, v.emoji, v.color, v.bgColor)
+        }
+        // Fallback
+        return ("Unknown", "?", ERColors.dimText, ERColors.inputBackground)
+    }
 }
