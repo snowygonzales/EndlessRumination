@@ -1,6 +1,8 @@
 import SwiftUI
 
 struct AdBannerView: View {
+    @Environment(AppState.self) private var appState
+
     var body: some View {
         HStack {
             Spacer()
@@ -10,9 +12,13 @@ struct AdBannerView: View {
                 .foregroundStyle(ERColors.dimText)
                 .tracking(1)
 
-            Text("Remove")
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(ERColors.accentGold)
+            Button {
+                appState.showPaywall = true
+            } label: {
+                Text("Remove")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(ERColors.accentGold)
+            }
 
             Spacer()
         }

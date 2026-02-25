@@ -28,6 +28,11 @@ struct ProblemInputView: View {
                         .padding(.vertical, 5)
                         .background(ERColors.proGradient)
                         .clipShape(Capsule())
+                        .onTapGesture {
+                            if !appState.isPro {
+                                appState.showPaywall = true
+                            }
+                        }
                         #if DEBUG
                         .onTapGesture(count: 3) {
                             appState.debugTogglePro()

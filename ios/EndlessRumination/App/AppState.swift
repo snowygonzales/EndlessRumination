@@ -19,6 +19,8 @@ final class AppState {
     var isGenerating: Bool = false
     var authToken: String?
     var subscriptionTier: SubscriptionTier = .free
+    var subscriptionManager: SubscriptionManager?
+    var showPaywall: Bool = false
 
     var wordCount: Int {
         problemText.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -38,7 +40,12 @@ final class AppState {
     }
 
     var totalTakes: Int { isPro ? 20 : Lens.freeLensCount }
-    var isPro: Bool { subscriptionTier == .pro }
+    var isPro: Bool {
+        #if DEBUG
+        if subscriptionTier == .pro { return true }
+        #endif
+        return subscriptionManager?.isProSubscribed ?? false
+    }
 
     var freeTakesRemaining: Int {
         max(0, Lens.freeLensCount - (currentTakeIndex + 1))

@@ -154,8 +154,12 @@ struct TakesView: View {
                     HStack(spacing: 4) {
                         Text("Daily limit reached \u{00B7}")
                             .foregroundStyle(ERColors.dimText)
-                        Text("Go Pro")
-                            .foregroundStyle(ERColors.accentGold)
+                        Button {
+                            appState.showPaywall = true
+                        } label: {
+                            Text("Go Pro")
+                                .foregroundStyle(ERColors.accentGold)
+                        }
                     }
                 } else if appState.freeTakesRemaining <= 3 {
                     HStack(spacing: 4) {
