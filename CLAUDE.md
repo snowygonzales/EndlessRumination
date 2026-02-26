@@ -14,6 +14,7 @@ Psychology app (SwiftUI iOS + KMP multiplatform) + Python backend (FastAPI). Use
 - KMP Android: `cd multiplatform && JAVA_HOME=/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home ./gradlew :androidApp:assembleDebug`
 - KMP iOS framework: `cd multiplatform && JAVA_HOME=/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home ./gradlew :shared:linkDebugFrameworkIosSimulatorArm64`
 - KMP iOS Xcode: `cd multiplatform/iosApp && xcodegen generate && open iosApp.xcodeproj`
+- TestFlight upload: `cd ios && xcodegen generate && xcodebuild -scheme EndlessRumination -sdk iphoneos -configuration Release -archivePath /tmp/ER.xcarchive archive && xcodebuild -exportArchive -archivePath /tmp/ER.xcarchive -exportOptionsPlist /tmp/ExportOptions.plist -exportPath /tmp/ERExport -allowProvisioningUpdates -authenticationKeyPath ~/.appstoreconnect/private_keys/AuthKey_8YM9M9P47X.p8 -authenticationKeyID 8YM9M9P47X -authenticationKeyIssuerID e5829743-777b-4a9f-a968-30a8714fb272`
 - Deploy to Railway: `railway up --detach` (from project root)
 
 ## Architecture
@@ -27,12 +28,18 @@ Psychology app (SwiftUI iOS + KMP multiplatform) + Python backend (FastAPI). Use
 - SSE streaming for real-time take delivery
 - xcodegen for Xcode project generation (project.yml → .xcodeproj)
 
-## Live Infrastructure
+## Environment & Infrastructure
+- **Machine**: Mac Mini M1, macOS, Xcode 16, Python 3.9
+- **JDK**: OpenJDK 17 via Homebrew (`JAVA_HOME=/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home`)
+- **Android SDK**: `~/Library/Android/sdk` (cmdline-tools, platform-tools, emulator, API 35 ARM64)
+- **iOS simulator**: iPhone 17 Pro (ID: `8C545099-AF9E-4D62-A716-E0826851F18D`)
+- **App Store Connect API**: Key `8YM9M9P47X` at `~/.appstoreconnect/private_keys/AuthKey_8YM9M9P47X.p8`, Issuer `e5829743-777b-4a9f-a968-30a8714fb272` — enables CLI TestFlight uploads (no Xcode Organizer needed)
 - **Production API**: https://backend-production-5537.up.railway.app
 - **Railway dashboard**: https://railway.com/project/30951286-357e-4529-a21c-bb527d62eb13
 - **Privacy policy**: https://github.com/snowygonzales/EndlessRumination/blob/master/docs/privacy-policy.md
 - **Support page**: https://github.com/snowygonzales/EndlessRumination/blob/master/docs/support.md
 - iOS debug builds → localhost:8000, release builds → Railway URL
+- PostgreSQL 16 + Redis via Homebrew (not Docker)
 
 ## Important Files
 - `KICKOFF.md` — Complete project spec, read this FIRST
