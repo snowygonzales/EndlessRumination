@@ -1,88 +1,94 @@
 package com.endlessrumination
 
+import androidx.compose.animation.*
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.height
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import com.endlessrumination.theme.ERColors
+import com.endlessrumination.ui.*
 
 @Composable
 fun App() {
-    var backendStatus by remember { mutableStateOf("Checking...") }
-    val apiClient = remember { ApiClient() }
-
-    LaunchedEffect(Unit) {
-        backendStatus = try {
-            val health = apiClient.healthCheck("https://backend-production-5537.up.railway.app")
-            "${health.app}: ${health.status}"
-        } catch (e: Exception) {
-            "Offline: ${e.message?.take(40)}"
-        }
-    }
+    val appState = remember { AppState() }
 
     MaterialTheme(
         colorScheme = darkColorScheme(
-            background = Color(0xFF0A0A0C),
-            surface = Color(0xFF1A1A20),
-            onBackground = Color(0xFFF0ECE4),
-            onSurface = Color(0xFF8A8690),
-            primary = Color(0xFFE8653A)
+            background = ERColors.background,
+            surface = ERColors.inputBackground,
+            onBackground = ERColors.primaryText,
+            onSurface = ERColors.secondaryText,
+            primary = ERColors.accentWarm
         )
     ) {
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+                .background(ERColors.background)
         ) {
-            Text(
-                text = "∞",
-                fontSize = 64.sp,
-                color = Color(0xFFE8653A),
-                fontWeight = FontWeight.Light
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-            Text(
-                text = "Endless Rumination",
-                fontSize = 28.sp,
-                color = Color(0xFFF0ECE4),
-                fontWeight = FontWeight.Bold
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = "Scroll your worries",
-                fontSize = 16.sp,
-                color = Color(0xFF8A8690)
-            )
-            Spacer(modifier = Modifier.height(24.dp))
-            Text(
-                text = "Running on ${getPlatformName()}",
-                fontSize = 14.sp,
-                color = Color(0xFF4A4650)
-            )
-            Spacer(modifier = Modifier.height(12.dp))
-            Text(
-                text = "Backend: $backendStatus",
-                fontSize = 14.sp,
-                color = if (backendStatus.contains("ok")) Color(0xFF3ECF8E) else Color(0xFF8A8690)
-            )
+            // Main screen content with animated transitions
+            AnimatedContent(
+                targetState = appState.currentScreen,
+                transitionSpec = {
+                    when {
+                        // Splash → Input: slide in from right
+                        initialState == AppScreen.SPLASH && targetState == AppScreen.INPUT ->
+                            slideInHorizontally(tween(400)) { it } + fadeIn(tween(400)) togetherWith
+                                    slideOutHorizontally(tween(400)) { -it } + fadeOut(tween(400))
+                        // Input → Loading: fade
+                        initialState == AppScreen.INPUT && targetState == AppScreen.LOADING ->
+                            fadeIn(tween(300)) togetherWith fadeOut(tween(300))
+                        // Loading → Takes: fade
+                        initialState == AppScreen.LOADING && targetState == AppScreen.TAKES ->
+                            fadeIn(tween(300)) togetherWith fadeOut(tween(300))
+                        // Takes → Input (back): slide in from left
+                        initialState == AppScreen.TAKES && targetState == AppScreen.INPUT ->
+                            slideInHorizontally(tween(400)) { -it } + fadeIn(tween(400)) togetherWith
+                                    slideOutHorizontally(tween(400)) { it } + fadeOut(tween(400))
+                        // Default: crossfade
+                        else -> fadeIn(tween(300)) togetherWith fadeOut(tween(300))
+                    }
+                },
+                label = "screen_transition"
+            ) { screen ->
+                when (screen) {
+                    AppScreen.SPLASH -> SplashScreen(appState)
+                    AppScreen.INPUT -> ProblemInputScreen(appState)
+                    AppScreen.LOADING -> LoadingScreen(appState)
+                    AppScreen.TAKES -> TakesScreen(appState)
+                }
+            }
+
+            // Full-screen overlays
+            if (appState.showSafetyOverlay) {
+                SafetyOverlayScreen(appState)
+            }
+
+            if (appState.showInstructionOverlay && appState.currentScreen == AppScreen.TAKES) {
+                InstructionOverlayScreen(appState)
+            }
+
+            // Full-screen modals
+            AnimatedVisibility(
+                visible = appState.showShop,
+                enter = slideInVertically(tween(300)) { it } + fadeIn(tween(300)),
+                exit = slideOutVertically(tween(300)) { it } + fadeOut(tween(300))
+            ) {
+                ShopScreen(appState)
+            }
+
+            AnimatedVisibility(
+                visible = appState.showPaywall,
+                enter = slideInVertically(tween(300)) { it } + fadeIn(tween(300)),
+                exit = slideOutVertically(tween(300)) { it } + fadeOut(tween(300))
+            ) {
+                ProUpgradeScreen(appState)
+            }
         }
     }
 }
