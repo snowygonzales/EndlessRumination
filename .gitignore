@@ -44,4 +44,8 @@ multiplatform/.gradle/
 multiplatform/build/
 multiplatform/*/build/
 multiplatform/iosApp/iosApp.xcodeproj/
+multiplatform/release.keystore
+multiplatform/keystore.properties
+multiplatform/play-service-account.json
 *.apk
+*.aab

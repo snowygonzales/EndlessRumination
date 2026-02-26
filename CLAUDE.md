@@ -14,6 +14,7 @@ Psychology app (SwiftUI iOS + KMP multiplatform) + Python backend (FastAPI). Use
 - KMP Android build: `cd multiplatform && JAVA_HOME=/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home ./gradlew :androidApp:assembleDebug`
 - KMP Android install: `~/Library/Android/sdk/platform-tools/adb install -r multiplatform/androidApp/build/outputs/apk/debug/androidApp-debug.apk`
 - KMP Android release: `cd multiplatform && JAVA_HOME=/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home ./gradlew :androidApp:bundleRelease` (produces AAB for Play Store)
+- KMP Android publish to Play Internal Testing: `cd multiplatform && JAVA_HOME=/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home ./gradlew :androidApp:publishReleaseBundle` (requires `play-service-account.json`)
 - KMP iOS framework: `cd multiplatform && JAVA_HOME=/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home ./gradlew :shared:linkDebugFrameworkIosSimulatorArm64`
 - KMP iOS Xcode: `cd multiplatform/iosApp && xcodegen generate && open iosApp.xcodeproj`
 - Android emulator: `~/Library/Android/sdk/emulator/emulator -avd Pixel_API_35 &`
@@ -76,15 +77,23 @@ Psychology app (SwiftUI iOS + KMP multiplatform) + Python backend (FastAPI). Use
 - Voice pack indices 20-39 extend the base lens system; `Lens.displayInfo(index)` provides unified lookup
 - Kotlin/KMP: State-based nav (AppScreen enum + `when`), AppState as plain class with `mutableStateOf`, explicit parameter passing (no CompositionLocal), Material Icons replace SF Symbols
 
-## Android Distribution (Firebase App Distribution)
-Firebase App Distribution is the Android equivalent of TestFlight — distributes debug/release APKs to testers without the Play Store. Setup:
-1. Create Firebase project at https://console.firebase.google.com
-2. Add Android app (`com.endlessrumination`), download `google-services.json` → `multiplatform/androidApp/`
-3. Install Firebase CLI: `npm install -g firebase-tools && firebase login`
-4. Distribute: `firebase appdistribution:distribute multiplatform/androidApp/build/outputs/apk/debug/androidApp-debug.apk --app <firebase-app-id> --groups "testers"`
-5. Testers get email invite, install via Firebase App Tester app on their Android device
-- Alternative: Google Play Internal Testing track (requires Play Console account, $25 one-time, takes 1-2 days initial review)
-- Quick alternative: share APK directly via link (debug APK, testers enable "Install from unknown sources")
+## Android Distribution (Google Play Internal Testing)
+Google Play Internal Testing is the Android equivalent of TestFlight. Uses `gradle-play-publisher` plugin for CLI uploads.
+
+**One-time setup (already done):**
+1. Release keystore at `multiplatform/release.keystore` (gitignored), credentials in `multiplatform/keystore.properties` (gitignored)
+2. `gradle-play-publisher` plugin (`com.github.triplet.play:3.11.0`) configured in `androidApp/build.gradle.kts`
+3. Play Console: create app `com.endlessrumination`, set up Internal Testing track, add tester emails
+
+**One-time setup (still needed):**
+4. In Google Play Console → Setup → API access → create service account, grant "Release manager" role
+5. Download the service account JSON key → `multiplatform/play-service-account.json` (gitignored)
+6. First upload MUST be done manually: Play Console → Internal Testing → Create release → upload `androidApp-release.aab`
+
+**CLI publish flow (after first manual upload):**
+- `cd multiplatform && JAVA_HOME=... ./gradlew :androidApp:publishReleaseBundle` — builds signed AAB + uploads to internal testing
+- Testers get notified in Play Store → install/update via normal Play Store flow
+- No "Install from unknown sources" needed, auto-updates work
 
 ## Multiplatform Stack
 - Kotlin 2.1.20 + Compose Multiplatform 1.7.3 + AGP 8.7.3 + Gradle 8.11.1
