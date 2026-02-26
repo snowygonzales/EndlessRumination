@@ -3,7 +3,7 @@
 ## Project Overview
 Psychology app (SwiftUI iOS + KMP multiplatform) + Python backend (FastAPI). Users describe a problem, then doom-scroll through AI-generated perspectives from different personas. Each perspective fades forever unless user is a Pro subscriber. Base lenses (0-19) come with free/Pro tiers; purchasable Voice Packs (20-39) add 5 historical-figure voices each.
 
-**Multiplatform (in progress):** KMP + Compose Multiplatform scaffold in `multiplatform/` targets both iOS and Android from shared Kotlin code. The original SwiftUI app in `ios/` remains the production iOS app on TestFlight.
+**Multiplatform:** KMP + Compose Multiplatform in `multiplatform/` targets both iOS and Android from shared Kotlin code. All 11 screens ported from SwiftUI to shared Compose (splash, input, loading, takes doom-scroll, shop, pack detail, pro paywall, safety overlay, instruction overlay, ad banner, take card). IAP stubbed with triple-tap debug toggle. The original SwiftUI app in `ios/` remains the production iOS app on TestFlight.
 
 ## Key Commands
 - Backend (local): `cd backend && source .venv/bin/activate && uvicorn app.main:app --reload`
@@ -11,9 +11,12 @@ Psychology app (SwiftUI iOS + KMP multiplatform) + Python backend (FastAPI). Use
 - Backend tests: `cd backend && pytest -v` (35 tests, SQLite + mocked Claude)
 - iOS project: `cd ios && xcodegen generate && open EndlessRumination.xcodeproj`
 - iOS tests: Cmd+U in Xcode (9 tests)
-- KMP Android: `cd multiplatform && JAVA_HOME=/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home ./gradlew :androidApp:assembleDebug`
+- KMP Android build: `cd multiplatform && JAVA_HOME=/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home ./gradlew :androidApp:assembleDebug`
+- KMP Android install: `~/Library/Android/sdk/platform-tools/adb install -r multiplatform/androidApp/build/outputs/apk/debug/androidApp-debug.apk`
+- KMP Android release: `cd multiplatform && JAVA_HOME=/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home ./gradlew :androidApp:bundleRelease` (produces AAB for Play Store)
 - KMP iOS framework: `cd multiplatform && JAVA_HOME=/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home ./gradlew :shared:linkDebugFrameworkIosSimulatorArm64`
 - KMP iOS Xcode: `cd multiplatform/iosApp && xcodegen generate && open iosApp.xcodeproj`
+- Android emulator: `~/Library/Android/sdk/emulator/emulator -avd Pixel_API_35 &`
 - TestFlight upload: `cd ios && xcodegen generate && xcodebuild -scheme EndlessRumination -sdk iphoneos -configuration Release -archivePath /tmp/ER.xcarchive archive && xcodebuild -exportArchive -archivePath /tmp/ER.xcarchive -exportOptionsPlist /tmp/ExportOptions.plist -exportPath /tmp/ERExport -allowProvisioningUpdates -authenticationKeyPath ~/.appstoreconnect/private_keys/AuthKey_8YM9M9P47X.p8 -authenticationKeyID 8YM9M9P47X -authenticationKeyIssuerID e5829743-777b-4a9f-a968-30a8714fb272`
 - Deploy to Railway: `railway up --detach` (from project root)
 
@@ -51,7 +54,13 @@ Psychology app (SwiftUI iOS + KMP multiplatform) + Python backend (FastAPI). Use
 - `ios/EndlessRumination/Views/ShopView.swift` — Voice Pack Shop UI
 - `ios/project.yml` — xcodegen config (source of truth for Xcode project)
 - `railway.toml` — Railway deployment config
-- `multiplatform/shared/src/commonMain/` — Shared KMP Compose UI + Ktor API client
+- `multiplatform/shared/src/commonMain/kotlin/.../App.kt` — Root composable with AnimatedContent navigation + overlay management
+- `multiplatform/shared/src/commonMain/kotlin/.../AppState.kt` — State management (mutableStateOf, screen enum, take list, pro/shop flags)
+- `multiplatform/shared/src/commonMain/kotlin/.../ApiClient.kt` — Ktor HTTP + SSE streaming (generateBatch returns Flow<Take>)
+- `multiplatform/shared/src/commonMain/kotlin/.../theme/` — ERColors.kt + ERTypography.kt (full design system)
+- `multiplatform/shared/src/commonMain/kotlin/.../model/` — Take, Lens (20 base), VoicePack (4×5 voices), User DTOs
+- `multiplatform/shared/src/commonMain/kotlin/.../ui/` — All 11 screens (Splash, ProblemInput, Loading, Takes, TakeCard, Shop, PackDetail, ProUpgrade, SafetyOverlay, InstructionOverlay, AdBanner)
+- `multiplatform/shared/src/commonMain/kotlin/.../service/SafetyService.kt` — Client blocklist + server safety check
 - `multiplatform/androidApp/` — Android app module (Compose)
 - `multiplatform/iosApp/` — iOS KMP wrapper (SwiftUI host for Compose views)
 - `multiplatform/gradle/libs.versions.toml` — KMP version catalog (Kotlin 2.1.20, Compose 1.7.3, Ktor 3.1.1)
@@ -64,7 +73,18 @@ Psychology app (SwiftUI iOS + KMP multiplatform) + Python backend (FastAPI). Use
 - API cost: ~$0.013/free submission (2 Sonnet + 3 Haiku), ~$0.12/Pro submission (20 Sonnet), ~$0.025 per pack (5 Sonnet)
 - "Wise" badge on Sonnet takes (including all pack voices), "Quick take · Powered by Haiku" on Haiku takes
 - Triple-tap Shop button in DEBUG builds to toggle Pro status (simulator cheat)
-- Voice pack indices 20-39 extend the base lens system; `Lens.displayInfo(at:)` provides unified lookup
+- Voice pack indices 20-39 extend the base lens system; `Lens.displayInfo(index)` provides unified lookup
+- Kotlin/KMP: State-based nav (AppScreen enum + `when`), AppState as plain class with `mutableStateOf`, explicit parameter passing (no CompositionLocal), Material Icons replace SF Symbols
+
+## Android Distribution (Firebase App Distribution)
+Firebase App Distribution is the Android equivalent of TestFlight — distributes debug/release APKs to testers without the Play Store. Setup:
+1. Create Firebase project at https://console.firebase.google.com
+2. Add Android app (`com.endlessrumination`), download `google-services.json` → `multiplatform/androidApp/`
+3. Install Firebase CLI: `npm install -g firebase-tools && firebase login`
+4. Distribute: `firebase appdistribution:distribute multiplatform/androidApp/build/outputs/apk/debug/androidApp-debug.apk --app <firebase-app-id> --groups "testers"`
+5. Testers get email invite, install via Firebase App Tester app on their Android device
+- Alternative: Google Play Internal Testing track (requires Play Console account, $25 one-time, takes 1-2 days initial review)
+- Quick alternative: share APK directly via link (debug APK, testers enable "Install from unknown sources")
 
 ## Multiplatform Stack
 - Kotlin 2.1.20 + Compose Multiplatform 1.7.3 + AGP 8.7.3 + Gradle 8.11.1
