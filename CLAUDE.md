@@ -37,13 +37,18 @@ Psychology app (SwiftUI iOS + KMP multiplatform) + Python backend (FastAPI). Use
 - **JDK**: OpenJDK 17 via Homebrew (`JAVA_HOME=/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home`)
 - **Android SDK**: `~/Library/Android/sdk` (cmdline-tools, platform-tools, emulator, API 35 ARM64)
 - **iOS simulator**: iPhone 17 Pro (ID: `8C545099-AF9E-4D62-A716-E0826851F18D`)
-- **App Store Connect API**: Key `8YM9M9P47X` at `~/.appstoreconnect/private_keys/AuthKey_8YM9M9P47X.p8`, Issuer `e5829743-777b-4a9f-a968-30a8714fb272` — enables CLI TestFlight uploads (no Xcode Organizer needed)
 - **Production API**: https://backend-production-5537.up.railway.app
 - **Railway dashboard**: https://railway.com/project/30951286-357e-4529-a21c-bb527d62eb13
 - **Privacy policy**: https://github.com/snowygonzales/EndlessRumination/blob/master/docs/privacy-policy.md
 - **Support page**: https://github.com/snowygonzales/EndlessRumination/blob/master/docs/support.md
 - iOS debug builds → localhost:8000, release builds → Railway URL
 - PostgreSQL 16 + Redis via Homebrew (not Docker)
+
+### CLI Publishing (both platforms — no GUI needed)
+- **iOS → TestFlight**: App Store Connect API key `8YM9M9P47X` at `~/.appstoreconnect/private_keys/AuthKey_8YM9M9P47X.p8`, Issuer `e5829743-777b-4a9f-a968-30a8714fb272` — `xcodebuild archive + exportArchive` with auth flags (see Key Commands)
+- **Android → Google Play Internal Testing**: Google Cloud service account (`play-service-account.json` in `multiplatform/`, gitignored) linked via Google Play Console Users & Permissions — `./gradlew publishReleaseBundle` builds signed AAB + uploads to internal track
+- **Google Play Console**: Account ID `6253718630117210435`, app package `com.endlessrumination`, developer identity verification pending (draft releases only until verified)
+- **Google Cloud project**: `endless-rumination` — Android Publisher API enabled, service account created and linked to Play Console
 
 ## Important Files
 - `KICKOFF.md` — Complete project spec, read this FIRST
@@ -78,22 +83,23 @@ Psychology app (SwiftUI iOS + KMP multiplatform) + Python backend (FastAPI). Use
 - Kotlin/KMP: State-based nav (AppScreen enum + `when`), AppState as plain class with `mutableStateOf`, explicit parameter passing (no CompositionLocal), Material Icons replace SF Symbols
 
 ## Android Distribution (Google Play Internal Testing)
-Google Play Internal Testing is the Android equivalent of TestFlight. Uses `gradle-play-publisher` plugin for CLI uploads.
+Google Play Internal Testing is the Android equivalent of TestFlight. Uses `gradle-play-publisher` plugin for CLI uploads. **Full CLI pipeline verified and working.**
 
-**One-time setup (already done):**
+**Setup (all complete):**
 1. Release keystore at `multiplatform/release.keystore` (gitignored), credentials in `multiplatform/keystore.properties` (gitignored)
 2. `gradle-play-publisher` plugin (`com.github.triplet.play:3.11.0`) configured in `androidApp/build.gradle.kts`
-3. Play Console: create app `com.endlessrumination`, set up Internal Testing track, add tester emails
+3. Play Console: app `com.endlessrumination` created, Internal Testing track set up with initial AAB upload
+4. Google Cloud: `endless-rumination` project, Android Publisher API enabled, service account created
+5. Service account linked to Play Console via Users & Permissions (not Setup → API access, which no longer exists)
+6. Service account JSON key at `multiplatform/play-service-account.json` (gitignored)
 
-**One-time setup (still needed):**
-4. In Google Play Console → Setup → API access → create service account, grant "Release manager" role
-5. Download the service account JSON key → `multiplatform/play-service-account.json` (gitignored)
-6. First upload MUST be done manually: Play Console → Internal Testing → Create release → upload `androidApp-release.aab`
-
-**CLI publish flow (after first manual upload):**
-- `cd multiplatform && JAVA_HOME=... ./gradlew :androidApp:publishReleaseBundle` — builds signed AAB + uploads to internal testing
+**CLI publish flow:**
+- `cd multiplatform && JAVA_HOME=... ./gradlew publishReleaseBundle` — builds signed AAB + uploads to internal testing
+- Currently creates draft releases (`ReleaseStatus.DRAFT`) due to pending developer identity verification
+- Once verified: change to `ReleaseStatus.COMPLETED` in `androidApp/build.gradle.kts` for auto-rollout to testers
 - Testers get notified in Play Store → install/update via normal Play Store flow
 - No "Install from unknown sources" needed, auto-updates work
+- Remember to bump `versionCode` in `androidApp/build.gradle.kts` before each publish (currently at 3)
 
 ## Multiplatform Stack
 - Kotlin 2.1.20 + Compose Multiplatform 1.7.3 + AGP 8.7.3 + Gradle 8.11.1

@@ -36,7 +36,7 @@ android {
         applicationId = "com.endlessrumination"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
+        versionCode = 3
         versionName = "0.1.0"
     }
 
@@ -69,5 +69,6 @@ play {
         serviceAccountCredentials.set(saFile)
     }
     track.set("internal") // internal testing track
+    releaseStatus.set(com.github.triplet.gradle.androidpublisher.ReleaseStatus.DRAFT)
     defaultToAppBundles.set(true)
 }
