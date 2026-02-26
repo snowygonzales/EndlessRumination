@@ -37,3 +37,11 @@ ios/*.xcworkspace/
 
 # Docker
 *.log
+
+# KMP / Android
+multiplatform/local.properties
+multiplatform/.gradle/
+multiplatform/build/
+multiplatform/*/build/
+multiplatform/iosApp/iosApp.xcodeproj/
+*.apk
