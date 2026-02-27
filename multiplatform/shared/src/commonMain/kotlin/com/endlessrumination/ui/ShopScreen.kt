@@ -8,6 +8,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -21,11 +22,14 @@ import com.endlessrumination.model.Lens
 import com.endlessrumination.model.VoicePack
 import com.endlessrumination.theme.ERColors
 import com.endlessrumination.theme.ERTypography
+import androidx.compose.ui.text.style.TextAlign
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun ShopScreen(appState: AppState) {
     var selectedPack by remember { mutableStateOf<VoicePack?>(null) }
+    val scope = rememberCoroutineScope()
 
     val currentPack = selectedPack
     if (currentPack != null) {
@@ -91,8 +95,32 @@ fun ShopScreen(appState: AppState) {
                 // Voice packs section
                 VoicePacksSection(appState, onPackTap = { selectedPack = it })
 
+                // Products not loaded notice
+                if (!appState.productsLoaded) {
+                    Text(
+                        "Products loading\u2026 Prices may be unavailable.",
+                        fontSize = 11.sp,
+                        color = ERColors.dimText,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+
                 // Coming soon
                 ComingSoonCard()
+
+                // Restore purchases
+                Text(
+                    "Restore Purchases",
+                    fontSize = 14.sp,
+                    color = ERColors.secondaryText,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            scope.launch { appState.restorePurchases() }
+                        }
+                )
 
                 Spacer(modifier = Modifier.height(40.dp))
             }

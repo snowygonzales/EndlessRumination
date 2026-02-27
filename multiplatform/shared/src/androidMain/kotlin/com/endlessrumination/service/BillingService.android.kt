@@ -235,6 +235,10 @@ actual class BillingService actual constructor(
         return RestoreResult.Success(isPro = _isPro, ownedPackIDs = _ownedPackIDs.toSet())
     }
 
+    // On Android, checkEntitlements is the same as restorePurchases
+    // (Google Play doesn't prompt for login like Apple does with AppStore.sync())
+    actual suspend fun checkEntitlements(): RestoreResult = restorePurchases()
+
     actual suspend fun getReceiptForServer(): ReceiptPayload? = lastReceiptPayload
 
     private fun handlePurchase(purchase: Purchase) {

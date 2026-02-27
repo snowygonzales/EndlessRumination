@@ -5,6 +5,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
@@ -25,8 +26,9 @@ fun App() {
         val billing = BillingService(appState)
         appState.billingService = billing
         billing.initialize()
-        billing.loadProducts()
-        billing.restorePurchases()
+        val loadResult = billing.loadProducts()
+        appState.productsLoaded = loadResult is com.endlessrumination.service.BillingResult.Success
+        billing.checkEntitlements()
     }
 
     // Dispose billing on exit
@@ -49,6 +51,7 @@ fun App() {
             modifier = Modifier
                 .fillMaxSize()
                 .background(ERColors.background)
+                .safeDrawingPadding()
         ) {
             // Main screen content with animated transitions
             AnimatedContent(

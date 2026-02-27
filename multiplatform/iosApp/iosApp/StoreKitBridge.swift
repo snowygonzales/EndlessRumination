@@ -110,6 +110,31 @@ class StoreKitBridge: StoreKitBridgeProtocol {
         }
     }
 
+    /// Lightweight entitlement check — reads cached Transaction.currentEntitlements
+    /// WITHOUT calling AppStore.sync(), so no Apple ID prompt is triggered.
+    func checkEntitlementsOnly(
+        completion: @escaping @Sendable (KotlinBoolean, Set<String>, String?) -> Void
+    ) {
+        Task {
+            var isPro = false
+            var ownedPacks = Set<String>()
+
+            for await result in Transaction.currentEntitlements {
+                if case .verified(let transaction) = result {
+                    if transaction.revocationDate == nil {
+                        if transaction.productID == "com.endlessrumination.pro.monthly" {
+                            isPro = true
+                        } else {
+                            ownedPacks.insert(transaction.productID)
+                        }
+                    }
+                }
+            }
+
+            completion(KotlinBoolean(value: isPro), ownedPacks, nil)
+        }
+    }
+
     private func checkEntitlements() {
         Task {
             var isPro = false

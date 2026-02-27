@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.endlessrumination.AppState
+import com.endlessrumination.service.HapticService
 import com.endlessrumination.theme.ERColors
 import com.endlessrumination.theme.ERTypography
 import kotlinx.coroutines.delay
@@ -57,6 +58,7 @@ fun TakesScreen(appState: AppState) {
         if (appState.currentTakeIndex >= appState.totalTakes - 1) return
 
         isBusy = true
+        HapticService.light()
         scope.launch {
             showGoneForever = true
 

@@ -22,6 +22,7 @@ import com.endlessrumination.ApiClient
 import com.endlessrumination.AppScreen
 import com.endlessrumination.AppState
 import com.endlessrumination.BASE_URL
+import com.endlessrumination.service.HapticService
 import com.endlessrumination.service.SafetyService
 import com.endlessrumination.theme.ERColors
 import com.endlessrumination.theme.ERTypography
@@ -46,6 +47,7 @@ fun ProblemInputScreen(appState: AppState) {
 
     fun submit() {
         if (!appState.canSubmit || isSubmitting) return
+        HapticService.medium()
         if (!SafetyService.clientSideCheck(appState.problemText)) {
             appState.showSafetyOverlay = true
             return
@@ -82,7 +84,7 @@ fun ProblemInputScreen(appState: AppState) {
         }
     }
 
-    Box(modifier = Modifier.fillMaxSize().background(ERColors.background)) {
+    Box(modifier = Modifier.fillMaxSize().background(ERColors.background).imePadding()) {
         Column(modifier = Modifier.fillMaxSize()) {
             // Header
             Row(
@@ -93,12 +95,16 @@ fun ProblemInputScreen(appState: AppState) {
                 Text(
                     text = "What\u2019s on your mind?",
                     style = ERTypography.serifTitle()
-                        .copy(color = ERColors.primaryText)
+                        .copy(color = ERColors.primaryText),
+                    modifier = Modifier.weight(1f, fill = false)
                 )
+
+                Spacer(modifier = Modifier.width(8.dp))
 
                 // Shop button
                 Row(
                     modifier = Modifier
+                        .wrapContentWidth()
                         .background(ERColors.proGradient, RoundedCornerShape(50))
                         .clickable {
                             shopTapCount++
@@ -110,10 +116,11 @@ fun ProblemInputScreen(appState: AppState) {
                             }
                         }
                         .padding(horizontal = 12.dp, vertical = 5.dp),
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("\u2726", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = ERColors.background)
-                    Text("SHOP", fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp, color = ERColors.background)
+                    Text("\u2726", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = ERColors.background, maxLines = 1, softWrap = false)
+                    Text("SHOP", fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp, color = ERColors.background, maxLines = 1, softWrap = false)
                 }
             }
 
@@ -136,7 +143,13 @@ fun ProblemInputScreen(appState: AppState) {
             ) {
                 BasicTextField(
                     value = appState.problemText,
-                    onValueChange = { appState.problemText = it },
+                    onValueChange = { newValue ->
+                        val oldWordCount = appState.wordCount
+                        appState.problemText = newValue
+                        if (appState.wordCount != oldWordCount) {
+                            HapticService.selection()
+                        }
+                    },
                     textStyle = TextStyle(color = ERColors.primaryText, fontSize = 16.sp, lineHeight = 22.sp),
                     cursorBrush = SolidColor(ERColors.accentWarm),
                     modifier = Modifier

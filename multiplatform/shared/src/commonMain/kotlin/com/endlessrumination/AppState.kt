@@ -28,6 +28,7 @@ class AppState : BillingCallback {
     // Billing
     var billingService: BillingService? = null
     var purchaseState by mutableStateOf(PurchaseUiState.IDLE)
+    var productsLoaded by mutableStateOf(false)
 
     // BillingCallback implementation
     override fun onProStatusChanged(isPro: Boolean) {

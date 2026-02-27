@@ -8,6 +8,7 @@ expect class BillingService(callback: BillingCallback) {
     suspend fun purchaseSubscription(productId: String, activityProvider: () -> Any?): PurchaseResult
     suspend fun purchaseOneTime(productId: String, activityProvider: () -> Any?): PurchaseResult
     suspend fun restorePurchases(): RestoreResult
+    suspend fun checkEntitlements(): RestoreResult
 
     val isPro: Boolean
     val ownedPackIDs: Set<String>

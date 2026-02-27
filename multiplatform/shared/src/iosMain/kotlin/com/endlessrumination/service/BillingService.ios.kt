@@ -153,6 +153,26 @@ actual class BillingService actual constructor(
         }
     }
 
+    actual suspend fun checkEntitlements(): RestoreResult {
+        val bridge = storeKitBridge
+            ?: return RestoreResult.Success(isPro = false, ownedPackIDs = emptySet())
+
+        return kotlinx.coroutines.suspendCancellableCoroutine { cont ->
+            bridge.checkEntitlementsOnly { isPro, ownedPacks, error ->
+                if (error != null) {
+                    cont.resume(RestoreResult.Error(error)) {}
+                } else {
+                    _isPro = isPro
+                    _ownedPackIDs.clear()
+                    _ownedPackIDs.addAll(ownedPacks)
+                    callback.onProStatusChanged(isPro)
+                    callback.onOwnedPacksChanged(_ownedPackIDs.toSet())
+                    cont.resume(RestoreResult.Success(isPro, _ownedPackIDs.toSet())) {}
+                }
+            }
+        }
+    }
+
     actual suspend fun getReceiptForServer(): ReceiptPayload? = lastReceiptPayload
 
     companion object {
@@ -181,6 +201,9 @@ interface StoreKitBridgeProtocol {
         completion: (success: Boolean, transactionId: String?, error: String?) -> Unit
     )
     fun restorePurchases(
+        completion: (isPro: Boolean, ownedPacks: Set<String>, error: String?) -> Unit
+    )
+    fun checkEntitlementsOnly(
         completion: (isPro: Boolean, ownedPacks: Set<String>, error: String?) -> Unit
     )
 }
