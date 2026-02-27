@@ -2,20 +2,22 @@
 
 > Doom-scroll your worries through AI perspectives that fade forever.
 
-A native iOS psychology app (SwiftUI) with a Python backend (FastAPI). Users describe a problem, then scroll through AI-generated "takes" from radically different personas — comedian, stoic philosopher, therapist, your dog, and more. Each take fades forever on scroll unless the user is a Pro subscriber.
+A psychology app with two native frontends — **SwiftUI** (iOS) and **Jetpack Compose** (Android) — backed by a **FastAPI** gateway to Claude AI. Users describe a problem, then scroll through AI-generated "takes" from radically different personas — comedian, stoic philosopher, therapist, your dog, and more. Each take fades forever on scroll unless the user is a Pro subscriber.
 
 **Free tier**: 5 lenses (2 Sonnet "Wise" + 3 Haiku), 3 submissions/month, ads.
-**Pro ($9.99/mo)**: All 20 lenses on Sonnet, no ads, history saved.
+**Pro ($9.99/mo)**: All 20 base lenses on Sonnet, no ads, history saved.
+**Voice Packs ($4.99 each)**: 4 packs of 5 historical-figure voices (indices 20-39), all Sonnet.
 
 ## Status
 
 | Component | Status |
 |-----------|--------|
 | Backend (FastAPI) | Live on Railway |
-| iOS App (SwiftUI) | Complete, simulator-tested |
-| App Icon | Done (1024x1024 gradient infinity) |
-| Privacy Policy | Hosted on GitHub |
-| TestFlight | Pending (see `TESTFLIGHT_TODO.md`) |
+| iOS App (SwiftUI) | Complete, on TestFlight |
+| Android App (Compose) | Complete, on Google Play Internal Testing |
+| Voice Pack Shop | 4 packs implemented (Strategists, Revolutionaries, Philosophers, Creators) |
+| AdMob | Real ads on both platforms |
+| IAP | StoreKit 2 (iOS) + Google Play Billing v7 (Android) |
 
 **Production API**: `https://backend-production-5537.up.railway.app`
 
@@ -24,6 +26,7 @@ A native iOS psychology app (SwiftUI) with a Python backend (FastAPI). Users des
 ### Prerequisites
 
 - macOS with Xcode 16+ (iOS development)
+- JDK 17 + Android SDK (Android development)
 - Python 3.9+ (backend)
 - PostgreSQL and Redis (backend, local dev) — or use Docker
 - [xcodegen](https://github.com/yonaskolb/XcodeGen) (`brew install xcodegen`)
@@ -65,10 +68,21 @@ open EndlessRumination.xcodeproj
 
 The debug build connects to `localhost:8000`. Release builds point to the Railway production URL.
 
+### Android App
+
+```bash
+cd android
+JAVA_HOME=/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home ./gradlew :app:assembleDebug
+# Install on emulator/device:
+~/Library/Android/sdk/platform-tools/adb install -r app/build/outputs/apk/debug/app-debug.apk
+```
+
+Android always connects to the Railway production URL.
+
 ### Tests
 
 ```bash
-# Backend (21 tests, SQLite + mocked Claude API, no Docker needed)
+# Backend (42 tests, SQLite + mocked Claude API, no Docker needed)
 cd backend && pytest -v
 
 # iOS (9 tests via Xcode test runner)
@@ -81,10 +95,10 @@ cd backend && pytest -v
 EndlessRumination/
 ├── KICKOFF.md                 ← Full project spec
 ├── CLAUDE.md                  ← Claude Code instructions
-├── TESTFLIGHT_TODO.md         ← TestFlight readiness checklist
 ├── railway.toml               ← Railway deployment config
 ├── docs/
-│   └── privacy-policy.md      ← App Store privacy policy
+│   ├── privacy-policy.md      ← App Store privacy policy
+│   └── support.md             ← Support page
 ├── reference/
 │   ├── mockup.jsx             ← React prototype (design reference only)
 │   └── sample_takes.json      ← 20 sample AI takes (quality bar)
@@ -92,35 +106,37 @@ EndlessRumination/
 │   ├── app/
 │   │   ├── main.py            ← FastAPI app, health check, CORS
 │   │   ├── config.py          ← Settings via env vars
-│   │   ├── models/
-│   │   │   ├── schemas.py     ← Pydantic request/response models
-│   │   │   └── database.py    ← SQLAlchemy async models
-│   │   ├── routers/
-│   │   │   ├── auth.py        ← POST /register, /login (device-based JWT)
-│   │   │   ├── safety.py      ← POST /safety-check (Claude classification)
-│   │   │   ├── takes.py       ← POST /generate-take, /generate-batch (SSE)
-│   │   │   └── subscription.py← GET /status, POST /verify-receipt
-│   │   ├── services/
-│   │   │   ├── claude_service.py   ← Claude API (Sonnet/Haiku hybrid, parallel + SSE)
-│   │   │   ├── safety_service.py   ← SAFE/UNSAFE classification
-│   │   │   ├── rate_limiter.py     ← Redis daily counters (graceful without Redis)
-│   │   │   └── auth_service.py     ← JWT create/decode
-│   │   └── lenses/
-│   │       └── definitions.py      ← All 20 persona system prompts
-│   ├── tests/                 ← 21 tests (pytest)
+│   │   ├── models/            ← Pydantic schemas + SQLAlchemy models
+│   │   ├── routers/           ← auth, safety, takes, subscription
+│   │   ├── services/          ← Claude API, safety, rate limiting, auth, receipt validation
+│   │   └── lenses/            ← 20 base persona prompts + 4 voice packs (20 voices)
+│   ├── tests/                 ← 42 tests (pytest)
 │   ├── Dockerfile
-│   ├── docker-compose.yml
 │   └── requirements.txt
-└── ios/
-    ├── project.yml            ← xcodegen config (generates .xcodeproj)
-    └── EndlessRumination/
-        ├── App/               ← App entry point + @Observable state machine
-        ├── Theme/             ← Colors, typography, animations
-        ├── Models/            ← Lens, Take, Problem, User
-        ├── Services/          ← APIClient (SSE streaming), SafetyService
-        ├── Views/             ← All SwiftUI screens
-        ├── Assets.xcassets/   ← App icon + accent color
-        └── Info.plist         ← ATS config for local networking
+├── ios/                       ← SwiftUI native iOS app
+│   ├── project.yml            ← xcodegen config (generates .xcodeproj)
+│   └── EndlessRumination/
+│       ├── App/               ← App entry point + @Observable state machine
+│       ├── Theme/             ← Colors, typography, animations
+│       ├── Models/            ← Lens, Take, VoicePack, User
+│       ├── Services/          ← APIClient (SSE), SubscriptionManager (StoreKit 2), SafetyService
+│       ├── Views/             ← All SwiftUI screens + real AdMob banner
+│       ├── Assets.xcassets/   ← App icon + accent color
+│       └── Info.plist         ← AdMob IDs, SKAdNetwork, ATS config
+├── android/                   ← Jetpack Compose native Android app
+│   ├── app/
+│   │   ├── build.gradle.kts   ← Compose BOM, Ktor, billing, ads, signing
+│   │   └── src/main/kotlin/
+│   │       └── com/endlessrumination/
+│   │           ├── App.kt          ← Root composable, navigation, billing lifecycle
+│   │           ├── AppState.kt     ← ViewModel state management
+│   │           ├── ApiClient.kt    ← Ktor HTTP + SSE streaming
+│   │           ├── model/          ← Lens, Take, VoicePack, User
+│   │           ├── service/        ← BillingService, HapticService, SafetyService
+│   │           ├── ui/             ← All Compose screens + real AdMob banner
+│   │           └── theme/          ← ERColors, ERTypography
+│   └── gradle/                ← Gradle wrapper
+└── multiplatform/             ← ARCHIVED (KMP reference code only)
 ```
 
 ## API Endpoints
@@ -135,6 +151,7 @@ EndlessRumination/
 | `POST` | `/api/v1/auth/register` | Register by device ID, returns JWT |
 | `POST` | `/api/v1/auth/login` | Login by device ID, returns JWT |
 | `GET` | `/api/v1/subscription/status` | Tier + daily usage (auth required) |
+| `POST` | `/api/v1/subscription/verify-receipt` | Validate Apple/Google purchase receipt |
 | `GET` | `/api/v1/takes/history` | Saved takes history (Pro only) |
 
 ## Environment Variables
@@ -147,32 +164,25 @@ EndlessRumination/
 | `JWT_SECRET` | Production | `change-me-in-production` | JWT signing secret |
 | `DEBUG` | No | `false` | Enable debug logging |
 
-## Monetization Model
+## Monetization
 
 | Tier | Lenses | AI Model | Submissions | Ads | Price |
 |------|--------|----------|-------------|-----|-------|
 | Free | 5 (indices 0-4) | 2 Sonnet "Wise" (1,9) + 3 Haiku | 1/day, 3/month | Yes | Free |
 | Pro | All 20 | Sonnet | 50/day | No | $9.99/mo |
+| Voice Packs | 5 per pack | Sonnet | Same as tier | Same as tier | $4.99 each |
 
-- "Wise" badge (sparkle icon) appears on Sonnet-powered takes
-- "Quick take · Powered by Haiku" label on Haiku takes
-- Triple-tap the PRO badge in simulator (DEBUG builds) to toggle Pro status
-
-## Build Phases
-
-1. **Backend Core** — FastAPI + Claude streaming + safety + auth + rate limiting ✅
-2. **iOS Core** — SwiftUI screens + API client + SSE streaming + swipe mechanics ✅
-3. **Deployment** — Railway backend + app icon + privacy policy ✅
-4. **Monetization** — Sonnet/Haiku hybrid, tiered lenses, wise badges, Pro cheat ✅
-5. **TestFlight** — Apple Developer account + App Store Connect + archive/upload *(next)*
-6. **Polish** — StoreKit 2 subscriptions, ads SDK, haptics, onboarding
+- 4 Voice Packs: Strategists (20-24), Revolutionaries (25-29), Philosophers (30-34), Creators (35-39)
+- "Wise" badge on Sonnet takes, "Quick take · Powered by Haiku" on Haiku takes
+- Triple-tap Shop button in DEBUG builds to toggle Pro status
 
 ## Cost
 
 | Item | Cost |
 |------|------|
 | Apple Developer Program | $99/year |
+| Google Play Developer | $25 one-time |
 | Railway backend hosting | ~$5-15/month |
-| Anthropic API — free user submission | ~$0.013 (2 Sonnet + 3 Haiku + safety) |
-| Anthropic API — Pro user submission | ~$0.12 (20 Sonnet + safety) |
-| TestFlight distribution | Free |
+| Anthropic API — free submission | ~$0.013 (2 Sonnet + 3 Haiku + safety) |
+| Anthropic API — Pro submission | ~$0.12 (20 Sonnet + safety) |
+| Anthropic API — per voice pack | ~$0.025 (5 Sonnet) |

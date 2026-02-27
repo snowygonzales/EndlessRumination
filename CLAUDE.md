@@ -101,6 +101,9 @@ EndlessRumination/
 - `backend/app/services/google_validator.py` — Google Play Developer API validation
 - `railway.toml` — Railway deployment config
 
+### Scripts
+- `scripts/create_asc_products.py` — Creates/updates all IAP products in App Store Connect via REST API (JWT auth, idempotent)
+
 ### Archived
 - `multiplatform/` — KMP Compose Multiplatform code (archived, reference only)
 
@@ -136,6 +139,24 @@ Google Play Internal Testing is the Android equivalent of TestFlight. Uses `grad
 - Remember to bump `versionCode` in `app/build.gradle.kts` before each publish (currently at 6)
 
 ## Monetization (IAP + Ads + Backend Validation)
+
+### IAP Product Setup (App Store Connect)
+All 5 iOS IAP products are created and priced in App Store Connect via `scripts/create_asc_products.py`:
+
+| Product ID | Type | Price | ASC ID |
+|-----------|------|-------|--------|
+| `com.endlessrumination.pro.monthly` | Auto-renewable subscription | $9.99/mo | 6759655515 |
+| `com.endlessrumination.pack.strategists` | Non-consumable | $4.99 | 6759794696 |
+| `com.endlessrumination.pack.revolutionaries` | Non-consumable | $4.99 | 6759794840 |
+| `com.endlessrumination.pack.philosophers` | Non-consumable | $4.99 | 6759794841 |
+| `com.endlessrumination.pack.creators` | Non-consumable | $4.99 | 6759794982 |
+
+- Subscription group: "Endless Rumination Pro" (ID: 21952994)
+- All products have en-US localizations and USD pricing set
+- Script is idempotent (handles 409 conflicts, looks up existing products)
+- **To re-run**: `source backend/.venv/bin/activate && python3 scripts/create_asc_products.py` (requires PyJWT, cryptography, requests)
+- **Remaining steps**: Upload review screenshots for each product, then submit with next app version
+- **Google Play**: Products need to be created via Play Console once developer identity verification clears (API product creation requires published app)
 
 ### iOS Billing (StoreKit 2)
 - `SubscriptionManager` — @Observable, uses StoreKit 2 async APIs directly
