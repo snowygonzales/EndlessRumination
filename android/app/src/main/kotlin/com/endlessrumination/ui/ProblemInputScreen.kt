@@ -108,9 +108,12 @@ fun ProblemInputScreen(appState: AppState) {
                         .background(ERColors.proGradient, RoundedCornerShape(50))
                         .clickable {
                             shopTapCount++
-                            if (shopTapCount >= 3) {
+                            if (shopTapCount >= 3 && com.endlessrumination.BuildConfig.DEBUG) {
                                 appState.debugTogglePro()
                                 shopTapCount = 0
+                            } else if (shopTapCount >= 3) {
+                                shopTapCount = 0
+                                appState.showShop = true
                             } else {
                                 appState.showShop = true
                             }

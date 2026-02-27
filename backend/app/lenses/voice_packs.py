@@ -119,7 +119,7 @@ VOICE_PACKS = [
                 "index": 25,
                 "name": "Vladimir Lenin",
                 "years": "1870\u20131924",
-                "emoji": "\u2642\ufe0f",
+                "emoji": "\u262d\ufe0f",
                 "color": "#ff4757",
                 "bg": "rgba(255,71,87,0.15)",
                 "desc": "Every personal problem reframed as systemic. Your boss isn't the problem \u2014 the system is.",

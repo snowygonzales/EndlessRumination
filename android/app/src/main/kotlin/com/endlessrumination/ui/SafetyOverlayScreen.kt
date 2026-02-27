@@ -1,5 +1,7 @@
 package com.endlessrumination.ui
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -9,6 +11,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -19,6 +22,7 @@ import com.endlessrumination.theme.ERTypography
 
 @Composable
 fun SafetyOverlayScreen(appState: AppState) {
+    val context = LocalContext.current
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -59,20 +63,34 @@ fun SafetyOverlayScreen(appState: AppState) {
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // Crisis resources
+            // Crisis resources (tappable)
             for (resource in SafetyService.crisisResources) {
-                Text(
-                    "${resource.name}: ${resource.value}",
-                    fontSize = 13.sp,
-                    color = ERColors.accentCyan,
-                    textAlign = TextAlign.Center
-                )
-                Text(
-                    resource.description,
-                    fontSize = 11.sp,
-                    color = ERColors.dimText,
-                    textAlign = TextAlign.Center
-                )
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.clickable {
+                        val intent = when (resource.action) {
+                            "call" -> Intent(Intent.ACTION_DIAL, Uri.parse("tel:${resource.value}"))
+                            "text" -> Intent(Intent.ACTION_SENDTO, Uri.parse("smsto:741741")).apply {
+                                putExtra("sms_body", "HOME")
+                            }
+                            else -> null
+                        }
+                        intent?.let { context.startActivity(it) }
+                    }
+                ) {
+                    Text(
+                        "${resource.name}: ${resource.value}",
+                        fontSize = 13.sp,
+                        color = ERColors.accentCyan,
+                        textAlign = TextAlign.Center
+                    )
+                    Text(
+                        resource.description,
+                        fontSize = 11.sp,
+                        color = ERColors.dimText,
+                        textAlign = TextAlign.Center
+                    )
+                }
                 Spacer(modifier = Modifier.height(8.dp))
             }
 

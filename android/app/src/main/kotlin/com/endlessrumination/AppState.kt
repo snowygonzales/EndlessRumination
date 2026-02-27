@@ -1,5 +1,7 @@
 package com.endlessrumination
 
+import android.app.Application
+import android.content.Context
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -7,18 +9,21 @@ import androidx.compose.runtime.setValue
 import com.endlessrumination.model.Lens
 import com.endlessrumination.model.Take
 import com.endlessrumination.model.VoicePack
-import androidx.lifecycle.ViewModel
+import androidx.lifecycle.AndroidViewModel
 import com.endlessrumination.service.*
 
 enum class AppScreen { SPLASH, INPUT, LOADING, TAKES }
 
-class AppState : ViewModel(), BillingCallback {
+class AppState(application: Application) : AndroidViewModel(application), BillingCallback {
+    private val prefs = application.getSharedPreferences("er_prefs", Context.MODE_PRIVATE)
+
     var currentScreen by mutableStateOf(AppScreen.SPLASH)
     var problemText by mutableStateOf("")
     var takes by mutableStateOf<List<Take>>(emptyList())
     var currentTakeIndex by mutableIntStateOf(0)
     var showSafetyOverlay by mutableStateOf(false)
     var showInstructionOverlay by mutableStateOf(true)
+    var showOnboarding by mutableStateOf(!prefs.getBoolean("hasSeenOnboarding", false))
     var isGenerating by mutableStateOf(false)
     var authToken by mutableStateOf<String?>(null)
     var isPro by mutableStateOf(false)
@@ -141,5 +146,10 @@ class AppState : ViewModel(), BillingCallback {
 
     fun debugTogglePro() {
         isPro = !isPro
+    }
+
+    fun dismissOnboarding() {
+        showOnboarding = false
+        prefs.edit().putBoolean("hasSeenOnboarding", true).apply()
     }
 }

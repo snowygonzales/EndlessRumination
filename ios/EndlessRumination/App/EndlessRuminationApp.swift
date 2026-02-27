@@ -48,6 +48,11 @@ struct ContentView: View {
                 TakesView()
                     .transition(.opacity)
             }
+
+            // One-time onboarding overlay (shown after first "Begin" tap)
+            if appState.showOnboarding && appState.currentScreen == .input {
+                OnboardingView()
+            }
         }
         .animation(.easeInOut(duration: 0.35), value: appState.currentScreen)
         .sheet(isPresented: $state.showPaywall) {

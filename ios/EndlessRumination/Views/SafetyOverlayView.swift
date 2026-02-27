@@ -35,15 +35,26 @@ struct SafetyOverlayView: View {
                     .multilineTextAlignment(.center)
                     .padding(.bottom, 8)
 
-                // Crisis resources link
-                Button {
-                    if let url = URL(string: "tel:988") {
-                        UIApplication.shared.open(url)
+                // Crisis resources
+                VStack(spacing: 10) {
+                    ForEach(Array(SafetyService.crisisResources.enumerated()), id: \.offset) { _, resource in
+                        Button {
+                            if resource.action == "call", let url = URL(string: "tel:\(resource.value)") {
+                                UIApplication.shared.open(url)
+                            } else if resource.action == "text", let url = URL(string: "sms:741741&body=HOME") {
+                                UIApplication.shared.open(url)
+                            }
+                        } label: {
+                            VStack(spacing: 2) {
+                                Text("\(resource.name): \(resource.value)")
+                                    .font(.system(size: 13))
+                                    .foregroundStyle(ERColors.accentCool)
+                                Text(resource.description)
+                                    .font(.system(size: 11))
+                                    .foregroundStyle(ERColors.dimText)
+                            }
+                        }
                     }
-                } label: {
-                    Text("If you're in crisis, tap here for resources \u{2192}")
-                        .font(.system(size: 13))
-                        .foregroundStyle(ERColors.accentCool)
                 }
                 .padding(.bottom, 28)
 

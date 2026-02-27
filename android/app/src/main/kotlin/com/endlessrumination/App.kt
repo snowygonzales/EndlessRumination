@@ -95,6 +95,15 @@ fun App() {
                 InstructionOverlayScreen(appState)
             }
 
+            // One-time onboarding overlay (shown after first "Begin" tap)
+            AnimatedVisibility(
+                visible = appState.showOnboarding && appState.currentScreen == AppScreen.INPUT,
+                enter = fadeIn(tween(300)),
+                exit = fadeOut(tween(250))
+            ) {
+                OnboardingScreen(appState)
+            }
+
             // Full-screen modals
             AnimatedVisibility(
                 visible = appState.showShop,
