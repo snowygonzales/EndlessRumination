@@ -21,7 +21,7 @@ Psychology app with two independent native frontends (SwiftUI iOS + Jetpack Comp
 
 ## Architecture
 - Two native frontends → FastAPI gateway → Claude Sonnet/Haiku hybrid API
-- Free tier: 5 lenses (2 Sonnet "Wise" at indices 1,9 + 3 Haiku), 3 submissions/month
+- Free tier: 5 lenses (1 Sonnet "Wise" at index 1 + 4 Haiku), 3 submissions/month
 - Pro ($9.99/mo): All 20 base lenses on Sonnet, 50/day, no ads, history saved
 - Voice Packs ($4.99 each, non-consumable IAP): 4 packs × 5 voices (indices 20-39), all Sonnet
   - Strategists (20-24), Revolutionaries (25-29), Philosophers (30-34), Creators (35-39)
@@ -36,6 +36,7 @@ EndlessRumination/
 ├── backend/                    # FastAPI backend (Python)
 ├── ios/                        # SwiftUI native iOS app
 ├── android/                    # Jetpack Compose native Android app
+├── scripts/                    # IAP product creation scripts (ASC + Play)
 ├── multiplatform/              # ARCHIVED — KMP reference code only
 ├── docs/
 ├── CLAUDE.md
@@ -58,7 +59,7 @@ EndlessRumination/
 ### CLI Publishing (both platforms — no GUI needed)
 - **iOS → TestFlight**: App Store Connect API key `8YM9M9P47X` at `~/.appstoreconnect/private_keys/AuthKey_8YM9M9P47X.p8`, Issuer `e5829743-777b-4a9f-a968-30a8714fb272`. Bundle ID: `com.endlessrumination.EndlessRumination`. ExportOptions plist at `/tmp/ExportOptions.plist` (method: app-store-connect, teamID: R6N5B4SDWH, destination: upload, signingStyle: automatic).
 - **Android → Google Play Internal Testing**: Google Cloud service account (`play-service-account.json` in `android/`, gitignored) linked via Google Play Console Users & Permissions — `./gradlew :app:publishReleaseBundle` builds signed AAB + uploads to internal track
-- **Google Play Console**: Account ID `6253718630117210435`, app package `com.endlessrumination`, developer identity verification pending (draft releases only until verified)
+- **Google Play Console**: Account ID `6253718630117210435`, app package `com.endlessrumination`, developer identity verified
 - **Google Cloud project**: `endless-rumination` — Android Publisher API enabled, service account created and linked to Play Console
 
 ## Important Files
@@ -114,7 +115,8 @@ EndlessRumination/
 - Python: FastAPI, async everywhere, type hints, Pydantic models, `from __future__ import annotations` (Python 3.9 compat)
 - All lens system prompts end with the standard format instruction (see KICKOFF.md)
 - Color values defined in KICKOFF.md are authoritative — match exactly
-- API cost: ~$0.013/free submission (2 Sonnet + 3 Haiku), ~$0.12/Pro submission (20 Sonnet), ~$0.025 per pack (5 Sonnet)
+- API cost: ~$0.01/free submission (1 Sonnet + 4 Haiku), ~$0.12/Pro submission (20 Sonnet), ~$0.025 per pack (5 Sonnet)
+- Backend config `free_sonnet_lens_indices: [1, 9]` marks which lenses use Sonnet for free users — but free users only access indices 0-4, so only index 1 is effectively Sonnet
 - "Wise" badge on Sonnet takes (including all pack voices), "Quick take · Powered by Haiku" on Haiku takes
 - Triple-tap Shop button in DEBUG builds to toggle Pro status (simulator cheat)
 - Voice pack indices 20-39 extend the base lens system; `Lens.displayInfo(index)` provides unified lookup (Kotlin), `Lens.displayInfo(at:)` (Swift)
@@ -133,8 +135,7 @@ Google Play Internal Testing is the Android equivalent of TestFlight. Uses `grad
 
 **CLI publish flow:**
 - `cd android && JAVA_HOME=... ./gradlew :app:publishReleaseBundle` — builds signed AAB + uploads to internal testing
-- Currently creates draft releases (`ReleaseStatus.DRAFT`) due to pending developer identity verification
-- Once verified: change to `ReleaseStatus.COMPLETED` in `app/build.gradle.kts` for auto-rollout to testers
+- Developer identity now verified. Currently `ReleaseStatus.DRAFT` — change to `ReleaseStatus.COMPLETED` in `app/build.gradle.kts` for auto-rollout to testers
 - Testers get notified in Play Store → install/update via normal Play Store flow
 - No "Install from unknown sources" needed, auto-updates work
 - Remember to bump `versionCode` in `app/build.gradle.kts` before each publish (currently at 6)

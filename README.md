@@ -4,7 +4,7 @@
 
 A psychology app with two native frontends — **SwiftUI** (iOS) and **Jetpack Compose** (Android) — backed by a **FastAPI** gateway to Claude AI. Users describe a problem, then scroll through AI-generated "takes" from radically different personas — comedian, stoic philosopher, therapist, your dog, and more. Each take fades forever on scroll unless the user is a Pro subscriber.
 
-**Free tier**: 5 lenses (2 Sonnet "Wise" + 3 Haiku), 3 submissions/month, ads.
+**Free tier**: 5 lenses (1 Sonnet "Wise" + 4 Haiku), 3 submissions/month, ads.
 **Pro ($9.99/mo)**: All 20 base lenses on Sonnet, no ads, history saved.
 **Voice Packs ($4.99 each)**: 4 packs of 5 historical-figure voices (indices 20-39), all Sonnet.
 
@@ -136,6 +136,7 @@ EndlessRumination/
 │   │           ├── ui/             ← All Compose screens + real AdMob banner
 │   │           └── theme/          ← ERColors, ERTypography
 │   └── gradle/                ← Gradle wrapper
+├── scripts/                   ← IAP product creation scripts (ASC + Play)
 └── multiplatform/             ← ARCHIVED (KMP reference code only)
 ```
 
@@ -168,7 +169,7 @@ EndlessRumination/
 
 | Tier | Lenses | AI Model | Submissions | Ads | Price |
 |------|--------|----------|-------------|-----|-------|
-| Free | 5 (indices 0-4) | 2 Sonnet "Wise" (1,9) + 3 Haiku | 1/day, 3/month | Yes | Free |
+| Free | 5 (indices 0-4) | 1 Sonnet "Wise" (1) + 4 Haiku | 1/day, 3/month | Yes | Free |
 | Pro | All 20 | Sonnet | 50/day | No | $9.99/mo |
 | Voice Packs | 5 per pack | Sonnet | Same as tier | Same as tier | $4.99 each |
 
@@ -183,6 +184,6 @@ EndlessRumination/
 | Apple Developer Program | $99/year |
 | Google Play Developer | $25 one-time |
 | Railway backend hosting | ~$5-15/month |
-| Anthropic API — free submission | ~$0.013 (2 Sonnet + 3 Haiku + safety) |
+| Anthropic API — free submission | ~$0.01 (1 Sonnet + 4 Haiku + safety) |
 | Anthropic API — Pro submission | ~$0.12 (20 Sonnet + safety) |
 | Anthropic API — per voice pack | ~$0.025 (5 Sonnet) |
