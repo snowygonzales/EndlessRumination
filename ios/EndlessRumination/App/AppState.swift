@@ -22,6 +22,7 @@ final class AppState {
     var subscriptionManager: SubscriptionManager?
     var showPaywall: Bool = false
     var showShop: Bool = false
+    var productsLoaded: Bool = false
 
     var wordCount: Int {
         problemText.trimmingCharacters(in: .whitespacesAndNewlines)

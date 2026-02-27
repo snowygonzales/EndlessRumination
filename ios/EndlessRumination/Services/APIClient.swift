@@ -101,6 +101,24 @@ actor APIClient {
         return try await post("/api/v1/generate-take", body: body)
     }
 
+    // MARK: - Receipt Validation
+
+    struct VerifyReceiptResponse: Codable {
+        let status: String
+        let product_id: String
+        let is_subscription: Bool
+    }
+
+    func verifyReceipt(platform: String, productId: String, purchaseToken: String, isSubscription: Bool) async throws -> VerifyReceiptResponse {
+        let body: [String: Any] = [
+            "platform": platform,
+            "product_id": productId,
+            "purchase_token": purchaseToken,
+            "is_subscription": isSubscription,
+        ]
+        return try await post("/api/v1/subscription/verify-receipt", body: body)
+    }
+
     // MARK: - Helpers
 
     private func post<T: Decodable>(_ path: String, body: [String: Any]) async throws -> T {

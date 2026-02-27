@@ -157,6 +157,7 @@ struct ProblemInputView: View {
             return
         }
 
+        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
         isSubmitting = true
         isTextFieldFocused = false
 

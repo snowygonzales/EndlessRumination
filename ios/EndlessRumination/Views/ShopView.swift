@@ -5,6 +5,7 @@ struct ShopView: View {
     @Environment(SubscriptionManager.self) private var subscriptionManager
     @Environment(\.dismiss) private var dismiss
     @State private var selectedPack: VoicePack?
+    @State private var isRestoring = false
 
     var body: some View {
         NavigationStack {
@@ -26,6 +27,9 @@ struct ShopView: View {
 
                         // Coming soon
                         comingSoonCard
+
+                        // Restore purchases
+                        restoreButton
 
                         Spacer(minLength: 40)
                     }
@@ -172,6 +176,29 @@ struct ShopView: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 28)
+    }
+
+    // MARK: - Restore Purchases
+
+    private var restoreButton: some View {
+        Button {
+            isRestoring = true
+            Task {
+                await subscriptionManager.restorePurchases()
+                isRestoring = false
+            }
+        } label: {
+            if isRestoring {
+                ProgressView()
+                    .tint(ERColors.secondaryText)
+            } else {
+                Text("Restore Purchases")
+                    .font(.system(size: 13))
+                    .foregroundStyle(ERColors.secondaryText)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .disabled(isRestoring)
     }
 }
 

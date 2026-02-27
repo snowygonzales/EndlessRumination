@@ -38,7 +38,7 @@ ios/*.xcworkspace/
 # Docker
 *.log
 
-# KMP / Android
+# KMP / Android (archived)
 multiplatform/local.properties
 multiplatform/.gradle/
 multiplatform/build/
@@ -47,5 +47,14 @@ multiplatform/iosApp/iosApp.xcodeproj/
 multiplatform/release.keystore
 multiplatform/keystore.properties
 multiplatform/play-service-account.json
+
+# Android (standalone)
+android/local.properties
+android/.gradle/
+android/app/build/
+android/build/
+android/release.keystore
+android/keystore.properties
+android/play-service-account.json
 *.apk
 *.aab

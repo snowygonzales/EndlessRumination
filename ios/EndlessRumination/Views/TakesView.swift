@@ -226,6 +226,7 @@ struct TakesView: View {
         guard appState.currentTakeIndex < appState.totalTakes - 1 else { return }
 
         isBusy = true
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
 
         // Show "gone forever" flash
         withAnimation(.easeOut(duration: 0.3)) {

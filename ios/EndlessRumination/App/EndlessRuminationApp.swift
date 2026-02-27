@@ -1,9 +1,14 @@
 import SwiftUI
+import GoogleMobileAds
 
 @main
 struct EndlessRuminationApp: App {
     @State private var appState = AppState()
     @State private var subscriptionManager = SubscriptionManager()
+
+    init() {
+        GADMobileAds.sharedInstance().start(completionHandler: nil)
+    }
 
     var body: some Scene {
         WindowGroup {
