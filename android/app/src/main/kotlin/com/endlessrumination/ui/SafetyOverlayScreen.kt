@@ -81,7 +81,7 @@ fun SafetyOverlayScreen(appState: AppState) {
                     Text(
                         "${resource.name}: ${resource.value}",
                         fontSize = 13.sp,
-                        color = ERColors.accentCyan,
+                        color = ERColors.accentCool,
                         textAlign = TextAlign.Center
                     )
                     Text(

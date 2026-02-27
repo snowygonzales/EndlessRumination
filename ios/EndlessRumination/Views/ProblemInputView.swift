@@ -116,11 +116,15 @@ struct ProblemInputView: View {
                 .padding(.horizontal, 24)
                 .padding(.bottom, 16)
 
-                // Safety disclaimer
-                HStack(spacing: 4) {
-                    Image(systemName: "shield.fill")
-                        .font(.system(size: 10))
-                    Text("All content analyzed for safety. Crisis resources provided when needed.")
+                // Disclaimers
+                VStack(spacing: 4) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "shield.fill")
+                            .font(.system(size: 10))
+                        Text("All content analyzed for safety. Crisis resources provided when needed.")
+                            .font(ERTypography.caption)
+                    }
+                    Text("Not a substitute for professional mental health care.")
                         .font(ERTypography.caption)
                 }
                 .foregroundStyle(ERColors.dimText)
@@ -150,6 +154,12 @@ struct ProblemInputView: View {
 
     private func submit() {
         guard appState.canSubmit else { return }
+
+        // Show AI consent dialog on first use
+        if !appState.hasConsentedAI {
+            appState.showAIConsent = true
+            return
+        }
 
         // Client-side safety check
         guard SafetyService.clientSideCheck(appState.problemText) else {

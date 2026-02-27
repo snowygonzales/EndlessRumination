@@ -6,6 +6,7 @@ struct ShopView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var selectedPack: VoicePack?
     @State private var isRestoring = false
+    @State private var showDeleteConfirmation = false
 
     var body: some View {
         NavigationStack {
@@ -31,10 +32,25 @@ struct ShopView: View {
                         // Restore purchases
                         restoreButton
 
+                        // Legal links + account deletion
+                        legalSection
+
                         Spacer(minLength: 40)
                     }
                     .padding(.horizontal, 24)
                     .padding(.top, 12)
+                }
+                .alert("Delete Account", isPresented: $showDeleteConfirmation) {
+                    Button("Delete", role: .destructive) {
+                        // Send account deletion request
+                        // In a full implementation, call API to delete account
+                        if let url = URL(string: "mailto:sefiroth@gmail.com?subject=Delete%20My%20Account&body=Please%20delete%20my%20Endless%20Rumination%20account%20and%20all%20associated%20data.") {
+                            UIApplication.shared.open(url)
+                        }
+                    }
+                    Button("Cancel", role: .cancel) {}
+                } message: {
+                    Text("This will permanently delete your account and all associated data. This action cannot be undone.")
                 }
             }
             .navigationBarTitleDisplayMode(.inline)
@@ -155,7 +171,7 @@ struct ShopView: View {
                 .foregroundStyle(ERColors.primaryText)
 
             ForEach(VoicePack.all) { pack in
-                PackCardView(pack: pack, isOwned: subscriptionManager.isPackOwned(pack.productID)) {
+                PackCardView(pack: pack, isOwned: subscriptionManager.isPackOwned(pack.productID), price: subscriptionManager.packProducts[pack.productID]?.displayPrice ?? "$4.99") {
                     selectedPack = pack
                 }
             }
@@ -176,6 +192,35 @@ struct ShopView: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 28)
+    }
+
+    // MARK: - Legal Section
+
+    private var legalSection: some View {
+        VStack(spacing: 12) {
+            // Links
+            HStack(spacing: 16) {
+                Link("Privacy Policy", destination: URL(string: "https://github.com/snowygonzales/EndlessRumination/blob/master/docs/privacy-policy.md")!)
+                Link("Terms of Service", destination: URL(string: "https://github.com/snowygonzales/EndlessRumination/blob/master/docs/terms-of-service.md")!)
+                Link("Support", destination: URL(string: "https://github.com/snowygonzales/EndlessRumination/blob/master/docs/support.md")!)
+            }
+            .font(.system(size: 12))
+            .foregroundStyle(ERColors.accentCool)
+
+            // Delete account
+            Button {
+                showDeleteConfirmation = true
+            } label: {
+                Text("Delete Account")
+                    .font(.system(size: 12))
+                    .foregroundStyle(ERColors.accentRed)
+            }
+
+            Text("Not a substitute for professional mental health care.")
+                .font(.system(size: 10))
+                .foregroundStyle(ERColors.dimText)
+        }
+        .padding(.top, 12)
     }
 
     // MARK: - Restore Purchases
@@ -207,6 +252,7 @@ struct ShopView: View {
 private struct PackCardView: View {
     let pack: VoicePack
     let isOwned: Bool
+    var price: String = "$4.99"
     let onTap: () -> Void
 
     var body: some View {
@@ -236,7 +282,7 @@ private struct PackCardView: View {
                             .background(ERColors.accentGreen.opacity(0.15))
                             .clipShape(Capsule())
                     } else {
-                        Text("$4.99")
+                        Text(price)
                             .font(.system(size: 13, weight: .bold))
                             .foregroundStyle(pack.color)
                             .padding(.horizontal, 14)

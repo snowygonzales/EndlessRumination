@@ -27,6 +27,26 @@ class ApiClient {
         }
     }
 
+    // Auth
+
+    suspend fun register(baseUrl: String, deviceId: String): AuthResponse {
+        val response = client.post("$baseUrl/api/v1/auth/register") {
+            contentType(ContentType.Application.Json)
+            setBody(json.encodeToString(RegisterRequest.serializer(), RegisterRequest(deviceId)))
+        }
+        return json.decodeFromString(response.bodyAsText())
+    }
+
+    suspend fun login(baseUrl: String, deviceId: String): AuthResponse {
+        val response = client.post("$baseUrl/api/v1/auth/login") {
+            contentType(ContentType.Application.Json)
+            setBody(json.encodeToString(RegisterRequest.serializer(), RegisterRequest(deviceId)))
+        }
+        return json.decodeFromString(response.bodyAsText())
+    }
+
+    // Safety
+
     suspend fun safetyCheck(baseUrl: String, problem: String): SafetyCheckResponse {
         val response = client.post("$baseUrl/api/v1/safety-check") {
             contentType(ContentType.Application.Json)

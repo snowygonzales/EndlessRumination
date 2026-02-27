@@ -47,6 +47,13 @@ fun ProblemInputScreen(appState: AppState) {
 
     fun submit() {
         if (!appState.canSubmit || isSubmitting) return
+
+        // Show AI consent dialog on first use
+        if (!appState.hasConsentedAI) {
+            appState.showAIConsent = true
+            return
+        }
+
         HapticService.medium()
         if (!SafetyService.clientSideCheck(appState.problemText)) {
             appState.showSafetyOverlay = true
@@ -220,16 +227,25 @@ fun ProblemInputScreen(appState: AppState) {
                 }
             }
 
-            // Safety disclaimer
-            Row(
+            // Disclaimers
+            Column(
                 modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp),
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Text("\uD83D\uDEE1\uFE0F", fontSize = 10.sp)
-                Spacer(modifier = Modifier.width(4.dp))
+                Row(
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("\uD83D\uDEE1\uFE0F", fontSize = 10.sp)
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        "All content analyzed for safety. Crisis resources provided when needed.",
+                        style = ERTypography.caption.copy(color = ERColors.dimText)
+                    )
+                }
+                Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    "All content analyzed for safety. Crisis resources provided when needed.",
+                    "Not a substitute for professional mental health care.",
                     style = ERTypography.caption.copy(color = ERColors.dimText)
                 )
             }

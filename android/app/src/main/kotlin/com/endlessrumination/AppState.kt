@@ -6,11 +6,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
 import com.endlessrumination.model.Lens
 import com.endlessrumination.model.Take
 import com.endlessrumination.model.VoicePack
-import androidx.lifecycle.AndroidViewModel
 import com.endlessrumination.service.*
+import kotlinx.coroutines.launch
 
 enum class AppScreen { SPLASH, INPUT, LOADING, TAKES }
 
@@ -24,6 +26,7 @@ class AppState(application: Application) : AndroidViewModel(application), Billin
     var showSafetyOverlay by mutableStateOf(false)
     var showInstructionOverlay by mutableStateOf(true)
     var showOnboarding by mutableStateOf(!prefs.getBoolean("hasSeenOnboarding", false))
+    var showAIConsent by mutableStateOf(false)
     var isGenerating by mutableStateOf(false)
     var authToken by mutableStateOf<String?>(null)
     var isPro by mutableStateOf(false)
@@ -34,7 +37,9 @@ class AppState(application: Application) : AndroidViewModel(application), Billin
     // Billing
     var billingService: BillingService? = null
     var purchaseState by mutableStateOf(PurchaseUiState.IDLE)
+    var purchaseErrorMessage by mutableStateOf<String?>(null)
     var productsLoaded by mutableStateOf(false)
+    private val apiClient = ApiClient()
 
     // BillingCallback implementation
     override fun onProStatusChanged(isPro: Boolean) {
@@ -47,18 +52,43 @@ class AppState(application: Application) : AndroidViewModel(application), Billin
 
     override fun onPurchaseStateChanged(state: PurchaseUiState) {
         this.purchaseState = state
+        if (state == PurchaseUiState.FAILED && purchaseErrorMessage == null) {
+            purchaseErrorMessage = "Purchase failed. Please try again."
+        }
+        if (state == PurchaseUiState.PURCHASED) {
+            showPaywall = false
+        }
+    }
+
+    override fun onReceiptReady(receipt: ReceiptPayload) {
+        // Verify receipt on backend (non-blocking, best effort — matches iOS behavior)
+        viewModelScope.launch {
+            try {
+                apiClient.verifyReceipt(
+                    baseUrl = BASE_URL,
+                    platform = receipt.platform,
+                    productId = receipt.productId,
+                    purchaseToken = receipt.purchaseToken,
+                    isSubscription = receipt.isSubscription,
+                    token = authToken
+                )
+            } catch (_: Exception) {
+                // Non-blocking — server verification is best-effort
+            }
+        }
     }
 
     // Purchase actions
     suspend fun purchasePro(activityProvider: () -> Any?) {
+        purchaseErrorMessage = null
         val result = billingService?.purchaseSubscription(
             BillingProductIds.PRO_MONTHLY, activityProvider
         )
         when (result) {
-            is PurchaseResult.Success -> showPaywall = false
+            is PurchaseResult.Success -> { /* purchase flow launched, result comes via callback */ }
             is PurchaseResult.Cancelled -> { /* stay on paywall */ }
             is PurchaseResult.Pending -> { /* show pending message */ }
-            is PurchaseResult.Error -> { /* show error */ }
+            is PurchaseResult.Error -> { purchaseErrorMessage = result.message }
             null -> {
                 // No billing service (debug mode) — toggle directly
                 isPro = true
@@ -68,10 +98,15 @@ class AppState(application: Application) : AndroidViewModel(application), Billin
     }
 
     suspend fun purchasePack(productId: String, activityProvider: () -> Any?) {
+        purchaseErrorMessage = null
         val result = billingService?.purchaseOneTime(productId, activityProvider)
-        if (result == null) {
-            // No billing service (debug mode) — toggle directly
-            ownedPackIDs = ownedPackIDs + productId
+        when (result) {
+            is PurchaseResult.Error -> { purchaseErrorMessage = result.message }
+            null -> {
+                // No billing service (debug mode) — toggle directly
+                ownedPackIDs = ownedPackIDs + productId
+            }
+            else -> { /* result comes via callback */ }
         }
     }
 
@@ -119,7 +154,7 @@ class AppState(application: Application) : AndroidViewModel(application), Billin
         get() = ownedPackIDs.toList()
 
     val hasTakeForCurrentIndex: Boolean
-        get() = takes.sortedBy { it.lensIndex }.size > currentTakeIndex
+        get() = takes.any { it.lensIndex == currentTakeIndex }
 
     fun reset() {
         problemText = ""
@@ -146,6 +181,14 @@ class AppState(application: Application) : AndroidViewModel(application), Billin
 
     fun debugTogglePro() {
         isPro = !isPro
+    }
+
+    val hasConsentedAI: Boolean
+        get() = prefs.getBoolean("hasConsentedAI", false)
+
+    fun consentToAI() {
+        showAIConsent = false
+        prefs.edit().putBoolean("hasConsentedAI", true).apply()
     }
 
     fun dismissOnboarding() {

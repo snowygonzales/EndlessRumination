@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -23,6 +24,7 @@ import androidx.compose.ui.unit.sp
 import com.endlessrumination.AppState
 import com.endlessrumination.model.VoicePack
 import com.endlessrumination.model.VoicePackVoice
+import com.endlessrumination.service.PurchaseUiState
 import com.endlessrumination.service.rememberActivityProvider
 import com.endlessrumination.theme.ERColors
 import com.endlessrumination.theme.ERTypography
@@ -111,7 +113,9 @@ fun PackDetailScreen(pack: VoicePack, appState: AppState, onBack: () -> Unit) {
             PurchaseBar(
                 pack = pack,
                 isOwned = isOwned,
+                isPurchasing = appState.purchaseState == PurchaseUiState.PURCHASING,
                 price = appState.getPackPrice(pack.productID),
+                errorMessage = appState.purchaseErrorMessage,
                 onPurchase = {
                     scope.launch { appState.purchasePack(pack.productID, activityProvider) }
                 }
@@ -233,7 +237,14 @@ private fun VoicePreviewCard(voice: VoicePackVoice, packColor: Color) {
 }
 
 @Composable
-private fun PurchaseBar(pack: VoicePack, isOwned: Boolean, price: String = "$4.99", onPurchase: () -> Unit) {
+private fun PurchaseBar(
+    pack: VoicePack,
+    isOwned: Boolean,
+    isPurchasing: Boolean = false,
+    price: String = "$4.99",
+    errorMessage: String? = null,
+    onPurchase: () -> Unit
+) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -246,6 +257,19 @@ private fun PurchaseBar(pack: VoicePack, isOwned: Boolean, price: String = "$4.9
                 .height(1.dp)
                 .background(Color.White.copy(alpha = 0.04f))
         )
+
+        // Error message
+        errorMessage?.let { msg ->
+            Text(
+                msg,
+                fontSize = 12.sp,
+                color = ERColors.accentRed,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp, vertical = 6.dp),
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+            )
+        }
 
         val buttonModifier = Modifier
             .fillMaxWidth()
@@ -261,22 +285,26 @@ private fun PurchaseBar(pack: VoicePack, isOwned: Boolean, price: String = "$4.9
             )
         }
         val finalModifier = bgModifier
-            .then(if (!isOwned) Modifier.clickable(onClick = onPurchase) else Modifier)
+            .then(if (!isOwned && !isPurchasing) Modifier.clickable(onClick = onPurchase) else Modifier)
             .padding(vertical = 16.dp)
 
         Box(
             modifier = finalModifier,
             contentAlignment = Alignment.Center
         ) {
-            if (isOwned) {
-                Text(
+            when {
+                isOwned -> Text(
                     "\u2713 Purchased \u2014 Voices Active",
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Bold,
                     color = ERColors.accentGreen
                 )
-            } else {
-                Text(
+                isPurchasing -> CircularProgressIndicator(
+                    modifier = Modifier.size(22.dp),
+                    color = Color.White,
+                    strokeWidth = 2.dp
+                )
+                else -> Text(
                     "Unlock ${pack.voices.size} Voices \u2014 $price",
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Bold,

@@ -29,7 +29,7 @@ struct SafetyOverlayView: View {
                     .padding(.bottom, 12)
 
                 // Description
-                Text("Your input was flagged by our safety system.")
+                Text("Your input was flagged by our safety system. If you\u{2019}re going through a difficult time, please reach out to a crisis resource.")
                     .font(.system(size: 14))
                     .foregroundStyle(ERColors.secondaryText)
                     .multilineTextAlignment(.center)

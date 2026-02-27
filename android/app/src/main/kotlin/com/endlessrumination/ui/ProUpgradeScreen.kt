@@ -1,5 +1,7 @@
 package com.endlessrumination.ui
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -13,6 +15,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -128,6 +131,20 @@ fun ProUpgradeScreen(appState: AppState) {
                 }
             }
 
+            // Purchase error message
+            appState.purchaseErrorMessage?.let { errorMsg ->
+                Text(
+                    errorMsg,
+                    fontSize = 12.sp,
+                    color = ERColors.accentRed,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 24.dp)
+                        .padding(top = 8.dp)
+                )
+            }
+
             Spacer(modifier = Modifier.height(16.dp))
 
             // Restore purchases
@@ -145,17 +162,42 @@ fun ProUpgradeScreen(appState: AppState) {
 
             Spacer(modifier = Modifier.weight(1f))
 
-            // Fine print
-            Text(
-                "Cancel anytime. Subscription auto-renews monthly.",
-                fontSize = 11.sp,
-                color = ERColors.dimText,
-                textAlign = TextAlign.Center,
+            // Fine print + legal links
+            val context = LocalContext.current
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 32.dp)
-                    .padding(bottom = 24.dp)
-            )
+                    .padding(bottom = 24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    "Payment charged to your Google Play account at confirmation. Subscription auto-renews monthly unless cancelled at least 24 hours before the end of the current period. Manage in Google Play \u203A Subscriptions.",
+                    fontSize = 10.sp,
+                    color = ERColors.dimText,
+                    textAlign = TextAlign.Center,
+                    lineHeight = 14.sp
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(
+                        "Privacy Policy",
+                        fontSize = 10.sp,
+                        color = ERColors.accentCool,
+                        modifier = Modifier.clickable {
+                            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/snowygonzales/EndlessRumination/blob/master/docs/privacy-policy.md")))
+                        }
+                    )
+                    Text(
+                        "Terms of Service",
+                        fontSize = 10.sp,
+                        color = ERColors.accentCool,
+                        modifier = Modifier.clickable {
+                            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/snowygonzales/EndlessRumination/blob/master/docs/terms-of-service.md")))
+                        }
+                    )
+                }
+            }
         }
     }
 }

@@ -9,8 +9,17 @@ data class Lens(
     val color: Color,
     val bgColor: Color
 ) {
+    /** Whether this lens is available to free-tier users */
+    val isFree: Boolean get() = id < FREE_LENS_COUNT
+
+    /** Whether this lens is powered by Sonnet (shown as "Wise") */
+    val isWise: Boolean get() = wiseLensIndices.contains(id)
+
     companion object {
         const val FREE_LENS_COUNT = 5
+
+        /** These lens indices use Sonnet ("Wise") even for free-tier users */
+        val wiseLensIndices: Set<Int> = setOf(1, 9)
 
         val freeLenses: List<Lens> by lazy { all.take(FREE_LENS_COUNT) }
 

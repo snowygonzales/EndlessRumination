@@ -26,7 +26,7 @@ struct InstructionOverlayView: View {
                         .foregroundStyle(ERColors.dimText)
                         .padding(.top, 4)
 
-                    Text("Free: 10 takes/day \u{00B7} Pro: unlimited")
+                    Text("Free: 5 takes/day \u{00B7} Pro: unlimited")
                         .font(.system(size: 11))
                         .foregroundStyle(ERColors.accentGold)
                         .padding(.top, 12)

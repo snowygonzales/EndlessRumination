@@ -1,18 +1,23 @@
 package com.endlessrumination.ui
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.*
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -29,7 +34,9 @@ import kotlinx.coroutines.launch
 @Composable
 fun ShopScreen(appState: AppState) {
     var selectedPack by remember { mutableStateOf<VoicePack?>(null) }
+    var showDeleteDialog by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
 
     val currentPack = selectedPack
     if (currentPack != null) {
@@ -122,8 +129,86 @@ fun ShopScreen(appState: AppState) {
                         }
                 )
 
+                // Legal links + account deletion
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 12.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                        Text(
+                            "Privacy Policy",
+                            fontSize = 12.sp,
+                            color = ERColors.accentCool,
+                            modifier = Modifier.clickable {
+                                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/snowygonzales/EndlessRumination/blob/master/docs/privacy-policy.md")))
+                            }
+                        )
+                        Text(
+                            "Terms of Service",
+                            fontSize = 12.sp,
+                            color = ERColors.accentCool,
+                            modifier = Modifier.clickable {
+                                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/snowygonzales/EndlessRumination/blob/master/docs/terms-of-service.md")))
+                            }
+                        )
+                        Text(
+                            "Support",
+                            fontSize = 12.sp,
+                            color = ERColors.accentCool,
+                            modifier = Modifier.clickable {
+                                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/snowygonzales/EndlessRumination/blob/master/docs/support.md")))
+                            }
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Text(
+                        "Delete Account",
+                        fontSize = 12.sp,
+                        color = ERColors.accentRed,
+                        modifier = Modifier.clickable { showDeleteDialog = true }
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Text(
+                        "Not a substitute for professional mental health care.",
+                        fontSize = 10.sp,
+                        color = ERColors.dimText
+                    )
+                }
+
                 Spacer(modifier = Modifier.height(40.dp))
             }
+        }
+
+        // Delete account dialog
+        if (showDeleteDialog) {
+            AlertDialog(
+                onDismissRequest = { showDeleteDialog = false },
+                title = { Text("Delete Account") },
+                text = { Text("This will permanently delete your account and all associated data. This action cannot be undone.") },
+                confirmButton = {
+                    TextButton(onClick = {
+                        showDeleteDialog = false
+                        val intent = Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:sefiroth@gmail.com")).apply {
+                            putExtra(Intent.EXTRA_SUBJECT, "Delete My Account")
+                            putExtra(Intent.EXTRA_TEXT, "Please delete my Endless Rumination account and all associated data.")
+                        }
+                        context.startActivity(intent)
+                    }) {
+                        Text("Delete", color = ERColors.accentRed)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showDeleteDialog = false }) {
+                        Text("Cancel")
+                    }
+                }
+            )
         }
     }
 }

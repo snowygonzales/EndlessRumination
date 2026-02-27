@@ -104,6 +104,15 @@ fun App() {
                 OnboardingScreen(appState)
             }
 
+            // AI consent dialog (shown before first submission)
+            AnimatedVisibility(
+                visible = appState.showAIConsent,
+                enter = fadeIn(tween(300)),
+                exit = fadeOut(tween(250))
+            ) {
+                AIConsentScreen(appState)
+            }
+
             // Full-screen modals
             AnimatedVisibility(
                 visible = appState.showShop,

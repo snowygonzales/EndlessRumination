@@ -34,7 +34,7 @@ struct LoadingView: View {
 
             // Take count if streaming
             if !appState.takes.isEmpty {
-                Text("\(appState.takes.count) / 20 perspectives ready")
+                Text("\(appState.takes.count) / \(appState.totalTakes) perspectives ready")
                     .font(ERTypography.counter)
                     .foregroundStyle(ERColors.dimText)
             }

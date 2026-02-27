@@ -11,6 +11,7 @@ enum AppScreen {
 @Observable
 final class AppState {
     private static let hasSeenOnboardingKey = "com.endlessrumination.hasSeenOnboarding"
+    private static let hasConsentedAIKey = "com.endlessrumination.hasConsentedAI"
 
     var currentScreen: AppScreen = .splash
     var problemText: String = ""
@@ -19,6 +20,7 @@ final class AppState {
     var showSafetyOverlay: Bool = false
     var showInstructionOverlay: Bool = true
     var showOnboarding: Bool = false
+    var showAIConsent: Bool = false
     var isGenerating: Bool = false
     var authToken: String?
     var subscriptionTier: SubscriptionTier = .free
@@ -26,6 +28,10 @@ final class AppState {
     var showPaywall: Bool = false
     var showShop: Bool = false
     var productsLoaded: Bool = false
+
+    var hasConsentedAI: Bool {
+        UserDefaults.standard.bool(forKey: Self.hasConsentedAIKey)
+    }
 
     init() {
         let hasSeen = UserDefaults.standard.bool(forKey: Self.hasSeenOnboardingKey)
@@ -35,6 +41,11 @@ final class AppState {
     func dismissOnboarding() {
         showOnboarding = false
         UserDefaults.standard.set(true, forKey: Self.hasSeenOnboardingKey)
+    }
+
+    func consentToAI() {
+        showAIConsent = false
+        UserDefaults.standard.set(true, forKey: Self.hasConsentedAIKey)
     }
 
     var wordCount: Int {

@@ -98,13 +98,23 @@ struct ProUpgradeView: View {
 
                 Spacer()
 
-                // Fine print
-                Text("Cancel anytime. Subscription auto-renews monthly.")
-                    .font(.system(size: 11))
-                    .foregroundStyle(ERColors.dimText)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 32)
-                    .padding(.bottom, 24)
+                // Fine print + legal links
+                VStack(spacing: 6) {
+                    Text("Payment charged to your Apple ID at confirmation. Subscription auto-renews monthly unless cancelled at least 24 hours before the end of the current period. Manage in Settings \u{203A} Subscriptions.")
+                        .font(.system(size: 10))
+                        .foregroundStyle(ERColors.dimText)
+                        .multilineTextAlignment(.center)
+                        .lineSpacing(2)
+
+                    HStack(spacing: 12) {
+                        Link("Privacy Policy", destination: URL(string: "https://github.com/snowygonzales/EndlessRumination/blob/master/docs/privacy-policy.md")!)
+                        Link("Terms of Service", destination: URL(string: "https://github.com/snowygonzales/EndlessRumination/blob/master/docs/terms-of-service.md")!)
+                    }
+                    .font(.system(size: 10))
+                    .foregroundStyle(ERColors.accentCool)
+                }
+                .padding(.horizontal, 32)
+                .padding(.bottom, 24)
             }
         }
         .onChange(of: subscriptionManager.isProSubscribed) { _, isPro in

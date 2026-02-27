@@ -1,5 +1,6 @@
 import SwiftUI
 import GoogleMobileAds
+import AppTrackingTransparency
 
 @main
 struct EndlessRuminationApp: App {
@@ -18,6 +19,12 @@ struct EndlessRuminationApp: App {
                 .task {
                     appState.subscriptionManager = subscriptionManager
                     await subscriptionManager.start()
+                }
+                .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
+                    // Request ATT after a brief delay so the app is fully visible
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                        ATTrackingManager.requestTrackingAuthorization { _ in }
+                    }
                 }
                 .preferredColorScheme(.dark)
         }
@@ -52,6 +59,11 @@ struct ContentView: View {
             // One-time onboarding overlay (shown after first "Begin" tap)
             if appState.showOnboarding && appState.currentScreen == .input {
                 OnboardingView()
+            }
+
+            // AI consent dialog (shown before first submission)
+            if appState.showAIConsent {
+                AIConsentView()
             }
         }
         .animation(.easeInOut(duration: 0.35), value: appState.currentScreen)

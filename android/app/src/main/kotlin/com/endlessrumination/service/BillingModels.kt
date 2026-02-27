@@ -40,6 +40,7 @@ interface BillingCallback {
     fun onProStatusChanged(isPro: Boolean)
     fun onOwnedPacksChanged(packIDs: Set<String>)
     fun onPurchaseStateChanged(state: PurchaseUiState)
+    fun onReceiptReady(receipt: ReceiptPayload)
 }
 
 object BillingProductIds {

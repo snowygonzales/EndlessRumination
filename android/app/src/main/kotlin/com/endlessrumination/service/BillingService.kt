@@ -251,27 +251,23 @@ class BillingService(
                 billingClient?.acknowledgePurchase(acknowledgeParams) { /* result */ }
             }
 
-            // Update entitlements
+            // Update entitlements and verify receipts on server
             for (productId in purchase.products) {
+                val receipt = ReceiptPayload(
+                    platform = "android",
+                    productId = productId,
+                    purchaseToken = purchase.purchaseToken,
+                    isSubscription = productId == BillingProductIds.PRO_MONTHLY
+                )
                 if (productId == BillingProductIds.PRO_MONTHLY) {
                     _isPro = true
                     callback.onProStatusChanged(true)
-                    lastReceiptPayload = ReceiptPayload(
-                        platform = "android",
-                        productId = productId,
-                        purchaseToken = purchase.purchaseToken,
-                        isSubscription = true
-                    )
                 } else if (productId in BillingProductIds.PACK_IDS) {
                     _ownedPackIDs.add(productId)
                     callback.onOwnedPacksChanged(_ownedPackIDs.toSet())
-                    lastReceiptPayload = ReceiptPayload(
-                        platform = "android",
-                        productId = productId,
-                        purchaseToken = purchase.purchaseToken,
-                        isSubscription = false
-                    )
                 }
+                lastReceiptPayload = receipt
+                callback.onReceiptReady(receipt)
             }
             callback.onPurchaseStateChanged(PurchaseUiState.PURCHASED)
         } else if (purchase.purchaseState == Purchase.PurchaseState.PENDING) {
