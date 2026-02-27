@@ -103,6 +103,7 @@ EndlessRumination/
 
 ### Scripts
 - `scripts/create_asc_products.py` — Creates/updates all IAP products in App Store Connect via REST API (JWT auth, idempotent)
+- `scripts/create_play_products.py` — Creates subscription in Google Play via API (voice packs require Play Console UI)
 
 ### Archived
 - `multiplatform/` — KMP Compose Multiplatform code (archived, reference only)
@@ -156,7 +157,22 @@ All 5 iOS IAP products are created and priced in App Store Connect via `scripts/
 - Script is idempotent (handles 409 conflicts, looks up existing products)
 - **To re-run**: `source backend/.venv/bin/activate && python3 scripts/create_asc_products.py` (requires PyJWT, cryptography, requests)
 - **Remaining steps**: Upload review screenshots for each product, then submit with next app version
-- **Google Play**: Products need to be created via Play Console once developer identity verification clears (API product creation requires published app)
+
+### IAP Product Setup (Google Play)
+All 5 Android IAP products are created in Google Play Console:
+
+| Product ID | Type | Price |
+|-----------|------|-------|
+| `com.endlessrumination.pro.monthly` | Subscription (P1M) | $9.99/mo |
+| `com.endlessrumination.pack.strategists` | One-time (managed) | $4.99 |
+| `com.endlessrumination.pack.revolutionaries` | One-time (managed) | $4.99 |
+| `com.endlessrumination.pack.philosophers` | One-time (managed) | $4.99 |
+| `com.endlessrumination.pack.creators` | One-time (managed) | $4.99 |
+
+- Subscription created via API (`scripts/create_play_products.py`), base plan `monthly-autorenew` (ACTIVE)
+- Voice packs created via Play Console UI (legacy `inappproducts` API blocked — "Please migrate"; modern `onetimeProducts` endpoint returns 404)
+- **To re-run subscription only**: `source backend/.venv/bin/activate && python3 scripts/create_play_products.py`
+- Products testable immediately by internal testers
 
 ### iOS Billing (StoreKit 2)
 - `SubscriptionManager` — @Observable, uses StoreKit 2 async APIs directly

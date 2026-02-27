@@ -123,13 +123,13 @@ struct ShopView: View {
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(ERColors.primaryText)
                 Spacer()
-                Text("\(Lens.all.count) included")
+                Text("\(Lens.freeLensCount) included")
                     .font(.system(size: 11))
                     .foregroundStyle(ERColors.dimText)
             }
 
             FlowLayout(spacing: 6) {
-                ForEach(Lens.all) { lens in
+                ForEach(Lens.freeLenses) { lens in
                     HStack(spacing: 4) {
                         Text(lens.emoji)
                             .font(.system(size: 11))

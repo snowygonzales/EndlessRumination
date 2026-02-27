@@ -12,6 +12,8 @@ data class Lens(
     companion object {
         const val FREE_LENS_COUNT = 5
 
+        val freeLenses: List<Lens> by lazy { all.take(FREE_LENS_COUNT) }
+
         val all: List<Lens> = listOf(
             Lens(0,  "The Comedian",       "\uD83D\uDE02", Color(0xFFFF6B9D), Color(0xFFFF6B9D).copy(alpha = 0.15f)),
             Lens(1,  "The Stoic",          "\uD83C\uDFDB", Color(0xFFC9A84C), Color(0xFFC9A84C).copy(alpha = 0.15f)),

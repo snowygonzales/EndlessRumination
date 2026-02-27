@@ -214,7 +214,7 @@ private fun FreeLensesSection() {
                 color = ERColors.primaryText
             )
             Text(
-                "${Lens.all.size} included",
+                "${Lens.FREE_LENS_COUNT} included",
                 fontSize = 11.sp,
                 color = ERColors.dimText
             )
@@ -226,7 +226,7 @@ private fun FreeLensesSection() {
             horizontalArrangement = Arrangement.spacedBy(6.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            for (lens in Lens.all) {
+            for (lens in Lens.freeLenses) {
                 Row(
                     modifier = Modifier
                         .background(Color.White.copy(alpha = 0.04f), RoundedCornerShape(50))
