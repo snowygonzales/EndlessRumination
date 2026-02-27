@@ -2,9 +2,7 @@ package com.endlessrumination.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -85,25 +83,19 @@ fun TakeCardView(take: Take) {
             modifier = Modifier.padding(bottom = 16.dp)
         )
 
-        // Body (scrollable)
-        Column(
-            modifier = Modifier
-                .weight(1f)
-                .verticalScroll(rememberScrollState())
-        ) {
-            Text(
-                text = take.body,
-                style = ERTypography.body.copy(color = ERColors.secondaryText, lineHeight = 20.sp)
-            )
+        // Body
+        Text(
+            text = take.body,
+            style = ERTypography.body.copy(color = ERColors.secondaryText, lineHeight = 20.sp)
+        )
 
-            if (!take.wise) {
-                Spacer(modifier = Modifier.height(16.dp))
-                Text(
-                    text = "Quick take \u00B7 Powered by Haiku",
-                    fontSize = 10.sp,
-                    color = ERColors.dimText
-                )
-            }
+        if (!take.wise) {
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = "Quick take \u00B7 Powered by Haiku",
+                fontSize = 10.sp,
+                color = ERColors.dimText
+            )
         }
     }
 }

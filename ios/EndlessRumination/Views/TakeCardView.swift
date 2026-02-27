@@ -61,22 +61,18 @@ struct TakeCardView: View {
                 .lineSpacing(4)
 
             // Body
-            ScrollView {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(take.body)
-                        .font(ERTypography.body)
-                        .foregroundStyle(ERColors.secondaryText)
-                        .lineSpacing(6)
-                        .fontWeight(.light)
+            Text(take.body)
+                .font(ERTypography.body)
+                .foregroundStyle(ERColors.secondaryText)
+                .lineSpacing(6)
+                .fontWeight(.light)
 
-                    // Haiku model indicator for non-wise takes
-                    if !take.wise {
-                        Text("Quick take \u{00B7} Powered by Haiku")
-                            .font(.system(size: 10))
-                            .foregroundStyle(ERColors.dimText)
-                            .padding(.top, 4)
-                    }
-                }
+            // Haiku model indicator for non-wise takes
+            if !take.wise {
+                Text("Quick take \u{00B7} Powered by Haiku")
+                    .font(.system(size: 10))
+                    .foregroundStyle(ERColors.dimText)
+                    .padding(.top, 4)
             }
         }
     }
