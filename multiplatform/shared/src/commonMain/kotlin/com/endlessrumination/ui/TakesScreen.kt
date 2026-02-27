@@ -179,11 +179,6 @@ fun TakesScreen(appState: AppState) {
                 }
             }
 
-            // Instruction overlay
-            if (appState.showInstructionOverlay) {
-                InstructionOverlayScreen(appState)
-            }
-
             // Swipe hint (at bottom)
             if (!appState.showInstructionOverlay && opacityAnim.value > 0.9f) {
                 Column(

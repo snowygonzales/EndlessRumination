@@ -76,11 +76,6 @@ async def generate_take(problem: str, lens_index: int, model: str | None = None)
     return {"lens_index": lens_index, "wise": wise, **parsed}
 
 
-async def _generate_single(problem: str, lens_index: int, model: str | None = None) -> dict:
-    """Internal: generate one take, return parsed dict."""
-    return await generate_take(problem, lens_index, model=model)
-
-
 async def generate_batch_streaming(
     problem: str, lens_indices: list[int], is_pro: bool = True
 ) -> AsyncGenerator[str, None]:
@@ -90,7 +85,7 @@ async def generate_batch_streaming(
     for i in range(0, len(lens_indices), batch_size):
         batch = lens_indices[i : i + batch_size]
         tasks = [
-            _generate_single(problem, idx, model=model_for_lens(idx, is_pro))
+            generate_take(problem, idx, model=model_for_lens(idx, is_pro))
             for idx in batch
         ]
         results = await asyncio.gather(*tasks, return_exceptions=True)

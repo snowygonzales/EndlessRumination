@@ -61,13 +61,6 @@ class TakeResponse(BaseModel):
     wise: bool = True
 
 
-class TakeStreamEvent(BaseModel):
-    lens_index: int
-    headline: str
-    body: str
-    wise: bool = True
-
-
 class UserResponse(BaseModel):
     id: UUID
     device_id: str

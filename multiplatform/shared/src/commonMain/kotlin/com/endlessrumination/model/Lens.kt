@@ -9,13 +9,8 @@ data class Lens(
     val color: Color,
     val bgColor: Color
 ) {
-    val index: Int get() = id
-    val isFree: Boolean get() = id < FREE_LENS_COUNT
-    val isWise: Boolean get() = id in wiseLensIndices
-
     companion object {
         const val FREE_LENS_COUNT = 5
-        val wiseLensIndices = setOf(1, 9)
 
         val all: List<Lens> = listOf(
             Lens(0,  "The Comedian",       "\uD83D\uDE02", Color(0xFFFF6B9D), Color(0xFFFF6B9D).copy(alpha = 0.15f)),
@@ -39,10 +34,6 @@ data class Lens(
             Lens(18, "Conspiracy Theorist","\uD83D\uDD3A", Color(0xFFE8B830), Color(0xFFE8B830).copy(alpha = 0.12f)),
             Lens(19, "Your Dog",           "\uD83D\uDC15", Color(0xFFF0A070), Color(0xFFF0A070).copy(alpha = 0.12f)),
         )
-
-        val freeLenses: List<Lens> = all.take(FREE_LENS_COUNT)
-
-        fun lens(index: Int): Lens = all[index % all.size]
 
         /** Unified display info for both base lenses (0-19) and pack voices (20-39). */
         fun displayInfo(index: Int): DisplayInfo {

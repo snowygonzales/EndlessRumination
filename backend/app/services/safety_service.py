@@ -2,14 +2,11 @@
 
 from __future__ import annotations
 
-import anthropic
-
 from app.config import get_settings
 from app.models.schemas import CRISIS_RESOURCES
+from app.services.claude_service import _get_client
 
 settings = get_settings()
-
-_client: anthropic.AsyncAnthropic | None = None
 
 SAFETY_SYSTEM_PROMPT = (
     "Analyze if this message contains: suicidal ideation, self-harm, "
@@ -17,13 +14,6 @@ SAFETY_SYSTEM_PROMPT = (
     "psychology wellness app. Respond with SAFE or UNSAFE and a one-word "
     "category if unsafe. Format: SAFE or UNSAFE:<category>"
 )
-
-
-def _get_client() -> anthropic.AsyncAnthropic:
-    global _client
-    if _client is None:
-        _client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
-    return _client
 
 
 async def check_safety(problem: str) -> dict:
@@ -35,7 +25,7 @@ async def check_safety(problem: str) -> dict:
     client = _get_client()
 
     message = await client.messages.create(
-        model=settings.claude_model,
+        model=settings.claude_model_haiku,
         max_tokens=50,
         system=SAFETY_SYSTEM_PROMPT,
         messages=[{"role": "user", "content": problem}],

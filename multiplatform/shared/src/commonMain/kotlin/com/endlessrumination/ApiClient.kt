@@ -4,7 +4,6 @@ import com.endlessrumination.model.*
 import io.ktor.client.HttpClient
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.request.bearerAuth
-import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.preparePost
 import io.ktor.client.request.post
@@ -28,34 +27,10 @@ class ApiClient {
         }
     }
 
-    var authToken: String? = null
-
-    suspend fun healthCheck(baseUrl: String): HealthResponse {
-        val response = client.get("$baseUrl/health")
-        val body = response.bodyAsText()
-        return json.decodeFromString(body)
-    }
-
     suspend fun safetyCheck(baseUrl: String, problem: String): SafetyCheckResponse {
         val response = client.post("$baseUrl/api/v1/safety-check") {
             contentType(ContentType.Application.Json)
             setBody(json.encodeToString(SafetyCheckRequest.serializer(), SafetyCheckRequest(problem)))
-        }
-        return json.decodeFromString(response.bodyAsText())
-    }
-
-    suspend fun register(baseUrl: String, deviceId: String): AuthResponse {
-        val response = client.post("$baseUrl/api/v1/auth/register") {
-            contentType(ContentType.Application.Json)
-            setBody(json.encodeToString(RegisterRequest.serializer(), RegisterRequest(deviceId)))
-        }
-        return json.decodeFromString(response.bodyAsText())
-    }
-
-    suspend fun login(baseUrl: String, deviceId: String): AuthResponse {
-        val response = client.post("$baseUrl/api/v1/auth/login") {
-            contentType(ContentType.Application.Json)
-            setBody(json.encodeToString(RegisterRequest.serializer(), RegisterRequest(deviceId)))
         }
         return json.decodeFromString(response.bodyAsText())
     }
@@ -76,7 +51,7 @@ class ApiClient {
         )
         val response = client.post("$baseUrl/api/v1/subscription/verify-receipt") {
             contentType(ContentType.Application.Json)
-            (token ?: authToken)?.let { bearerAuth(it) }
+            token?.let { bearerAuth(it) }
             setBody(json.encodeToString(VerifyReceiptRequest.serializer(), request))
         }
         return json.decodeFromString(response.bodyAsText())
@@ -97,7 +72,7 @@ class ApiClient {
         client.preparePost("$baseUrl/api/v1/generate-batch") {
             contentType(ContentType.Application.Json)
             header("Accept", "text/event-stream")
-            (token ?: authToken)?.let { bearerAuth(it) }
+            token?.let { bearerAuth(it) }
             setBody(requestBody)
         }.execute { response ->
             val channel = response.bodyAsChannel()

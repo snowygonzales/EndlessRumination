@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 
@@ -18,6 +19,8 @@ class GoogleValidator(ReceiptValidator):
 
     Uses a service account for authentication.
     Calls purchases.subscriptionsv2.get for subs, purchases.products.get for one-time.
+    Google API client uses blocking HTTP — all .execute() calls are wrapped
+    in asyncio.to_thread to avoid blocking the event loop.
     """
 
     def __init__(self, service_account_json: str, package_name: str):
@@ -73,15 +76,15 @@ class GoogleValidator(ReceiptValidator):
     ) -> ValidationResult:
         """Validate a subscription using subscriptionsv2.get (v3 API)."""
         try:
-            result = (
+            request = (
                 service.purchases()
                 .subscriptionsv2()
                 .get(
                     packageName=self.package_name,
                     token=purchase_token,
                 )
-                .execute()
             )
+            result = await asyncio.to_thread(request.execute)
 
             # subscriptionsv2.get returns subscription state
             subscription_state = result.get("subscriptionState", "")
@@ -124,7 +127,7 @@ class GoogleValidator(ReceiptValidator):
     ) -> ValidationResult:
         """Validate a one-time purchase using purchases.products.get."""
         try:
-            result = (
+            request = (
                 service.purchases()
                 .products()
                 .get(
@@ -132,13 +135,11 @@ class GoogleValidator(ReceiptValidator):
                     productId=product_id,
                     token=purchase_token,
                 )
-                .execute()
             )
+            result = await asyncio.to_thread(request.execute)
 
             # 0 = purchased, 1 = cancelled
             purchase_state = result.get("purchaseState", -1)
-            # 1 = acknowledged
-            acknowledgement_state = result.get("acknowledgementState", 0)
 
             if purchase_state == 0:
                 return ValidationResult(

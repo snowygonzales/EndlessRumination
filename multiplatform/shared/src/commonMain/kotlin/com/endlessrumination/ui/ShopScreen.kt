@@ -22,6 +22,7 @@ import com.endlessrumination.model.VoicePack
 import com.endlessrumination.theme.ERColors
 import com.endlessrumination.theme.ERTypography
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun ShopScreen(appState: AppState) {
     var selectedPack by remember { mutableStateOf<VoicePack?>(null) }
@@ -167,16 +168,10 @@ private fun ProCard(appState: AppState) {
             }
         }
 
-        // Border overlay
-        Box(
-            modifier = Modifier
-                .matchParentSize()
-                .clip(RoundedCornerShape(20.dp))
-                .background(Color.Transparent)
-        )
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun FreeLensesSection() {
     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -200,8 +195,8 @@ private fun FreeLensesSection() {
         // Flow layout for lens chips
         FlowRow(
             modifier = Modifier.fillMaxWidth(),
-            horizontalSpacing = 6.dp,
-            verticalSpacing = 6.dp
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             for (lens in Lens.all) {
                 Row(
@@ -240,6 +235,7 @@ private fun VoicePacksSection(appState: AppState, onPackTap: (VoicePack) -> Unit
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun PackCardView(pack: VoicePack, isOwned: Boolean, price: String = "$4.99", onTap: () -> Unit) {
     Column(
@@ -297,8 +293,8 @@ private fun PackCardView(pack: VoicePack, isOwned: Boolean, price: String = "$4.
         // Voice chips flow
         FlowRow(
             modifier = Modifier.fillMaxWidth(),
-            horizontalSpacing = 6.dp,
-            verticalSpacing = 6.dp
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             for (voice in pack.voices) {
                 Row(
@@ -341,47 +337,3 @@ private fun ComingSoonCard() {
     }
 }
 
-/**
- * Simple flow-row layout that wraps children to the next line when they exceed available width.
- */
-@Composable
-private fun FlowRow(
-    modifier: Modifier = Modifier,
-    horizontalSpacing: androidx.compose.ui.unit.Dp = 0.dp,
-    verticalSpacing: androidx.compose.ui.unit.Dp = 0.dp,
-    content: @Composable () -> Unit
-) {
-    androidx.compose.ui.layout.Layout(
-        content = content,
-        modifier = modifier
-    ) { measurables, constraints ->
-        val hSpacingPx = horizontalSpacing.roundToPx()
-        val vSpacingPx = verticalSpacing.roundToPx()
-        val placeables = measurables.map { it.measure(constraints.copy(minWidth = 0, minHeight = 0)) }
-
-        var x = 0
-        var y = 0
-        var rowHeight = 0
-        val positions = mutableListOf<Pair<Int, Int>>()
-
-        for (placeable in placeables) {
-            if (x + placeable.width > constraints.maxWidth && x > 0) {
-                x = 0
-                y += rowHeight + vSpacingPx
-                rowHeight = 0
-            }
-            positions.add(x to y)
-            rowHeight = maxOf(rowHeight, placeable.height)
-            x += placeable.width + hSpacingPx
-        }
-
-        val totalHeight = if (placeables.isEmpty()) 0 else y + rowHeight
-
-        layout(constraints.maxWidth, totalHeight) {
-            placeables.forEachIndexed { index, placeable ->
-                val (px, py) = positions[index]
-                placeable.placeRelative(px, py)
-            }
-        }
-    }
-}

@@ -13,9 +13,7 @@ data class VoicePackVoice(
     val desc: String,
     val sampleHeadline: String,
     val sampleBody: String
-) {
-    val index: Int get() = id
-}
+)
 
 data class VoicePack(
     val id: String,

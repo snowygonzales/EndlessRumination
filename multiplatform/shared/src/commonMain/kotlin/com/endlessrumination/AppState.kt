@@ -112,10 +112,7 @@ class AppState : BillingCallback {
         get() = ownedPackIDs.toList()
 
     val hasTakeForCurrentIndex: Boolean
-        get() = takes.any { it.lensIndex == currentTakeIndex }
-
-    val nextTakeReady: Boolean
-        get() = takes.any { it.lensIndex == currentTakeIndex + 1 }
+        get() = takes.sortedBy { it.lensIndex }.size > currentTakeIndex
 
     fun reset() {
         problemText = ""

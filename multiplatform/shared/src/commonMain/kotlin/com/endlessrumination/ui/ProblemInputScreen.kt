@@ -21,7 +21,7 @@ import androidx.compose.ui.unit.sp
 import com.endlessrumination.ApiClient
 import com.endlessrumination.AppScreen
 import com.endlessrumination.AppState
-import com.endlessrumination.getBaseUrl
+import com.endlessrumination.BASE_URL
 import com.endlessrumination.service.SafetyService
 import com.endlessrumination.theme.ERColors
 import com.endlessrumination.theme.ERTypography
@@ -31,7 +31,7 @@ import kotlinx.coroutines.launch
 fun ProblemInputScreen(appState: AppState) {
     val scope = rememberCoroutineScope()
     val apiClient = remember { ApiClient() }
-    val baseUrl = remember { getBaseUrl() }
+    val baseUrl = BASE_URL
     var isSubmitting by remember { mutableStateOf(false) }
     var shopTapCount by remember { mutableIntStateOf(0) }
 
@@ -219,9 +219,5 @@ fun ProblemInputScreen(appState: AppState) {
             }
         }
 
-        // Safety overlay
-        if (appState.showSafetyOverlay) {
-            SafetyOverlayScreen(appState)
-        }
     }
 }

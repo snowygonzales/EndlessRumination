@@ -1,5 +1,3 @@
 package com.endlessrumination
 
-expect fun getPlatformName(): String
-
-expect fun getBaseUrl(): String
+const val BASE_URL = "https://backend-production-5537.up.railway.app"

@@ -1,4 +1,4 @@
-"""Redis-backed rate limiting for takes and problems per day."""
+"""Redis-backed rate limiting for takes and problems (daily + monthly)."""
 
 from __future__ import annotations
 
@@ -32,6 +32,11 @@ def _day_key(prefix: str, user_id: str) -> str:
     return f"{prefix}:{user_id}:{today}"
 
 
+def _month_key(prefix: str, user_id: str) -> str:
+    month = datetime.now(timezone.utc).strftime("%Y-%m")
+    return f"{prefix}:monthly:{user_id}:{month}"
+
+
 async def check_rate_limit(
     user_id: str, is_pro: bool, resource: str = "problems"
 ) -> dict:
@@ -59,8 +64,31 @@ async def check_rate_limit(
     current = await r.get(key)
     used = int(current) if current else 0
 
+    # Daily limit check
+    if used >= limit:
+        return {
+            "allowed": False,
+            "used": used,
+            "limit": limit,
+            "remaining": 0,
+        }
+
+    # Monthly limit check for free-tier problem submissions
+    if resource == "problems" and not is_pro:
+        month_key = _month_key(resource, user_id)
+        monthly_current = await r.get(month_key)
+        monthly_used = int(monthly_current) if monthly_current else 0
+        monthly_limit = settings.free_problems_per_month
+        if monthly_used >= monthly_limit:
+            return {
+                "allowed": False,
+                "used": monthly_used,
+                "limit": monthly_limit,
+                "remaining": 0,
+            }
+
     return {
-        "allowed": used < limit,
+        "allowed": True,
         "used": used,
         "limit": limit,
         "remaining": max(0, limit - used),
@@ -79,6 +107,14 @@ async def increment_usage(user_id: str, resource: str = "problems") -> int:
     # Set TTL to expire at end of UTC day (max 24h)
     if count == 1:
         await r.expire(key, 86400)
+
+    # Also increment monthly counter for problem submissions
+    if resource == "problems":
+        month_key = _month_key(resource, user_id)
+        monthly_count = await r.incr(month_key)
+        if monthly_count == 1:
+            # Expire after 31 days (generous TTL for monthly window)
+            await r.expire(month_key, 31 * 86400)
 
     return count
 

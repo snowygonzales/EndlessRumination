@@ -8,7 +8,7 @@ Psychology app (KMP multiplatform) + Python backend (FastAPI). Users describe a 
 ## Key Commands
 - Backend (local): `cd backend && source .venv/bin/activate && uvicorn app.main:app --reload`
 - Backend (Docker): `cd backend && docker-compose up`
-- Backend tests: `cd backend && pytest -v` (42 tests, SQLite + mocked Claude — 2 pre-existing safety test failures)
+- Backend tests: `cd backend && pytest -v` (42 tests, all passing — SQLite + mocked Claude)
 - iOS project: `cd ios && xcodegen generate && open EndlessRumination.xcodeproj`
 - iOS tests: Cmd+U in Xcode (9 tests)
 - KMP Android build: `cd multiplatform && JAVA_HOME=/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home ./gradlew :androidApp:assembleDebug`
