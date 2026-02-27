@@ -17,8 +17,7 @@ actual fun PlatformAdBanner(modifier: Modifier) {
         factory = { context ->
             AdView(context).apply {
                 setAdSize(AdSize.BANNER)
-                // Test ad unit ID — replace with real ID before production
-                adUnitId = "ca-app-pub-3940256099942544/6300978111"
+                adUnitId = "ca-app-pub-5300605522420042/6942754502"
                 loadAd(AdRequest.Builder().build())
             }
         }
