@@ -103,7 +103,7 @@ Google Play Internal Testing is the Android equivalent of TestFlight. Uses `grad
 - Once verified: change to `ReleaseStatus.COMPLETED` in `androidApp/build.gradle.kts` for auto-rollout to testers
 - Testers get notified in Play Store → install/update via normal Play Store flow
 - No "Install from unknown sources" needed, auto-updates work
-- Remember to bump `versionCode` in `androidApp/build.gradle.kts` before each publish (currently at 3)
+- Remember to bump `versionCode` in `androidApp/build.gradle.kts` before each publish (currently at 4)
 
 ## Monetization (IAP + Ads + Backend Validation)
 
