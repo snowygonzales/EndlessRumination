@@ -24,6 +24,7 @@ targets:
         CFBundleShortVersionString: "$(MARKETING_VERSION)"
         CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
         CFBundleIconName: AppIcon
+        ITSAppUsesNonExemptEncryption: false
         CADisableMinimumFrameDurationOnPhone: true
         UILaunchScreen: {}
         UISupportedInterfaceOrientations:
