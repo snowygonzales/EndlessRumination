@@ -40,7 +40,10 @@ class LoginRequest(BaseModel):
 
 
 class VerifyReceiptRequest(BaseModel):
-    receipt_data: str
+    platform: str = Field(..., pattern="^(ios|android)$")
+    product_id: str
+    purchase_token: str
+    is_subscription: bool = True
 
 
 # ── Response Models ────────────────────────────────────

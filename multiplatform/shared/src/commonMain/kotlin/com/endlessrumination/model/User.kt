@@ -49,3 +49,18 @@ data class HealthResponse(
     val status: String,
     val app: String
 )
+
+@Serializable
+data class VerifyReceiptRequest(
+    val platform: String,
+    @SerialName("product_id") val productId: String,
+    @SerialName("purchase_token") val purchaseToken: String,
+    @SerialName("is_subscription") val isSubscription: Boolean
+)
+
+@Serializable
+data class VerifyReceiptResponse(
+    val status: String,
+    @SerialName("product_id") val productId: String,
+    @SerialName("is_subscription") val isSubscription: Boolean
+)

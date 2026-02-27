@@ -1,14 +1,14 @@
 # CLAUDE.md — Endless Rumination
 
 ## Project Overview
-Psychology app (SwiftUI iOS + KMP multiplatform) + Python backend (FastAPI). Users describe a problem, then doom-scroll through AI-generated perspectives from different personas. Each perspective fades forever unless user is a Pro subscriber. Base lenses (0-19) come with free/Pro tiers; purchasable Voice Packs (20-39) add 5 historical-figure voices each.
+Psychology app (KMP multiplatform) + Python backend (FastAPI). Users describe a problem, then doom-scroll through AI-generated perspectives from different personas. Each perspective fades forever unless user is a Pro subscriber. Base lenses (0-19) come with free/Pro tiers; purchasable Voice Packs (20-39) add 5 historical-figure voices each.
 
-**Multiplatform:** KMP + Compose Multiplatform in `multiplatform/` targets both iOS and Android from shared Kotlin code. All 11 screens ported from SwiftUI to shared Compose (splash, input, loading, takes doom-scroll, shop, pack detail, pro paywall, safety overlay, instruction overlay, ad banner, take card). IAP stubbed with triple-tap debug toggle. The original SwiftUI app in `ios/` remains the production iOS app on TestFlight.
+**Multiplatform (primary):** KMP + Compose Multiplatform in `multiplatform/` targets both iOS and Android from shared Kotlin code. All 11 screens, real billing (Google Play Billing v7 + StoreKit 2 via Swift bridge), AdMob ads, and backend receipt validation are implemented. The original SwiftUI app in `ios/` is archived as reference code — all active development is in `multiplatform/`.
 
 ## Key Commands
 - Backend (local): `cd backend && source .venv/bin/activate && uvicorn app.main:app --reload`
 - Backend (Docker): `cd backend && docker-compose up`
-- Backend tests: `cd backend && pytest -v` (35 tests, SQLite + mocked Claude)
+- Backend tests: `cd backend && pytest -v` (42 tests, SQLite + mocked Claude — 2 pre-existing safety test failures)
 - iOS project: `cd ios && xcodegen generate && open EndlessRumination.xcodeproj`
 - iOS tests: Cmd+U in Xcode (9 tests)
 - KMP Android build: `cd multiplatform && JAVA_HOME=/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home ./gradlew :androidApp:assembleDebug`
@@ -22,7 +22,7 @@ Psychology app (SwiftUI iOS + KMP multiplatform) + Python backend (FastAPI). Use
 - Deploy to Railway: `railway up --detach` (from project root)
 
 ## Architecture
-- SwiftUI iOS 17+ app → FastAPI gateway → Claude Sonnet/Haiku hybrid API
+- KMP Compose Multiplatform (iOS + Android) → FastAPI gateway → Claude Sonnet/Haiku hybrid API
 - Free tier: 5 lenses (2 Sonnet "Wise" at indices 1,9 + 3 Haiku), 3 submissions/month
 - Pro ($9.99/mo): All 20 base lenses on Sonnet, 50/day, no ads, history saved
 - Voice Packs ($4.99 each, non-consumable IAP): 4 packs × 5 voices (indices 20-39), all Sonnet
@@ -56,9 +56,7 @@ Psychology app (SwiftUI iOS + KMP multiplatform) + Python backend (FastAPI). Use
 - `reference/sample_takes.json` — Quality bar for AI-generated takes
 - `backend/app/lenses/definitions.py` — Base 20 lens system prompts (indices 0-19)
 - `backend/app/lenses/voice_packs.py` — Voice pack definitions (indices 20-39, 4 packs × 5 voices)
-- `ios/EndlessRumination/Models/VoicePack.swift` — iOS voice pack model with all pack/voice data
-- `ios/EndlessRumination/Views/ShopView.swift` — Voice Pack Shop UI
-- `ios/project.yml` — xcodegen config (source of truth for Xcode project)
+- `ios/` — Archived SwiftUI reference code (no longer primary)
 - `railway.toml` — Railway deployment config
 - `multiplatform/shared/src/commonMain/kotlin/.../App.kt` — Root composable with AnimatedContent navigation + overlay management
 - `multiplatform/shared/src/commonMain/kotlin/.../AppState.kt` — State management (mutableStateOf, screen enum, take list, pro/shop flags)
@@ -67,6 +65,12 @@ Psychology app (SwiftUI iOS + KMP multiplatform) + Python backend (FastAPI). Use
 - `multiplatform/shared/src/commonMain/kotlin/.../model/` — Take, Lens (20 base), VoicePack (4×5 voices), User DTOs
 - `multiplatform/shared/src/commonMain/kotlin/.../ui/` — All 11 screens (Splash, ProblemInput, Loading, Takes, TakeCard, Shop, PackDetail, ProUpgrade, SafetyOverlay, InstructionOverlay, AdBanner)
 - `multiplatform/shared/src/commonMain/kotlin/.../service/SafetyService.kt` — Client blocklist + server safety check
+- `multiplatform/shared/src/commonMain/kotlin/.../service/BillingModels.kt` — Shared billing types, sealed classes, product IDs
+- `multiplatform/shared/src/commonMain/kotlin/.../service/BillingService.kt` — expect/actual billing abstraction (Google Play Billing + StoreKit 2)
+- `multiplatform/iosApp/iosApp/StoreKitBridge.swift` — Swift StoreKit 2 bridge callable from Kotlin/Native
+- `backend/app/services/receipt_validator.py` — Abstract receipt validation base
+- `backend/app/services/apple_validator.py` — App Store Server API v2 validation
+- `backend/app/services/google_validator.py` — Google Play Developer API validation
 - `multiplatform/androidApp/` — Android app module (Compose)
 - `multiplatform/iosApp/` — iOS KMP wrapper (SwiftUI host for Compose views)
 - `multiplatform/gradle/libs.versions.toml` — KMP version catalog (Kotlin 2.1.20, Compose 1.7.3, Ktor 3.1.1)
@@ -100,6 +104,32 @@ Google Play Internal Testing is the Android equivalent of TestFlight. Uses `grad
 - Testers get notified in Play Store → install/update via normal Play Store flow
 - No "Install from unknown sources" needed, auto-updates work
 - Remember to bump `versionCode` in `androidApp/build.gradle.kts` before each publish (currently at 3)
+
+## Monetization (IAP + Ads + Backend Validation)
+
+### Billing (expect/actual pattern)
+- **Common**: `BillingModels.kt` (shared types), `BillingService.kt` (expect class), `ActivityProvider.kt` (expect composable)
+- **Android**: Google Play Billing Library v7 (`billing-ktx`). `BillingService.android.kt` handles products, purchases, acknowledgment. `ActivityProvider.android.kt` provides Activity context.
+- **iOS**: StoreKit 2 via Swift bridge. `BillingService.ios.kt` delegates to `StoreKitBridgeProtocol`. `StoreKitBridge.swift` in `iosApp/` wraps async StoreKit 2 APIs with completion handlers callable from Kotlin/Native.
+- **AppState** implements `BillingCallback` — receives purchase state changes, manages `isPro`, `ownedPackIDs`
+- **App.kt** lifecycle: `LaunchedEffect` → `initialize()` + `loadProducts()` + `restorePurchases()`; `DisposableEffect` → `dispose()`
+- Product IDs: `com.endlessrumination.pro.monthly` (subscription), `com.endlessrumination.pack.{strategists,revolutionaries,philosophers,creators}` (one-time)
+
+### AdMob
+- **Common**: `PlatformAdBanner.kt` (expect composable), `AdBannerView.kt` (wrapper with chrome)
+- **Android**: `PlatformAdBanner.android.kt` — `AndroidView` wrapping `AdView`, test ad unit `ca-app-pub-3940256099942544/6300978111`
+- **iOS**: `PlatformAdBanner.ios.kt` — placeholder (TODO: `UIKitView` with `GADBannerView`)
+- **AndroidManifest.xml**: AdMob `APPLICATION_ID` meta-data (test: `ca-app-pub-3940256099942544~3347511713`)
+- Swap test ad IDs for real ones before production release
+
+### Backend Receipt Validation
+- **`POST /api/v1/subscription/verify-receipt`** — routes to Apple or Google validator by `platform` field
+- **Apple**: App Store Server API v2 with JWT auth (.p8 key) → GET signed transaction → decode JWS → extract productId/expiry
+- **Google**: Google Play Developer API with service account → `subscriptionsv2.get` / `products.get`
+- Config: `apple_key_id`, `apple_issuer_id`, `apple_private_key_path`, `google_play_service_account_json` in Settings
+- Updates user `subscription_tier` (pro) or `owned_pack_ids` (comma-separated) in DB
+- Client calls `ApiClient.verifyReceipt()` after each successful purchase (background, non-blocking)
+- 7 new backend tests in `test_subscription.py` (mocked validators)
 
 ## Multiplatform Stack
 - Kotlin 2.1.20 + Compose Multiplatform 1.7.3 + AGP 8.7.3 + Gradle 8.11.1

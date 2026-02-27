@@ -32,6 +32,7 @@ class UserDB(Base):
         Enum("free", "pro", name="subscription_tier"), default="free", nullable=False
     )
     subscription_expires = Column(DateTime(timezone=True), nullable=True)
+    owned_pack_ids = Column(String, default="", nullable=False)  # comma-separated pack product IDs
     daily_takes_used = Column(Integer, default=0, nullable=False)
     daily_problems_used = Column(Integer, default=0, nullable=False)
     daily_reset_at = Column(

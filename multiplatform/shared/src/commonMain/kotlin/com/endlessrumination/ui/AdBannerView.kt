@@ -15,10 +15,9 @@ import com.endlessrumination.theme.ERColors
 
 @Composable
 fun AdBannerView(appState: AppState) {
-    Box(
+    Column(
         modifier = Modifier
             .fillMaxWidth()
-            .height(50.dp)
             .background(ERColors.inputBackground)
     ) {
         // Top border
@@ -29,33 +28,33 @@ fun AdBannerView(appState: AppState) {
                 .background(ERColors.border)
         )
 
-        Row(
-            modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
+        Box(modifier = Modifier.fillMaxWidth()) {
+            // Platform-specific ad banner
+            PlatformAdBanner(modifier = Modifier.fillMaxWidth())
+
+            // "Remove" button overlay (top-right area)
+            Row(
+                modifier = Modifier
+                    .align(Alignment.CenterEnd)
+                    .padding(end = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    "Remove",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = ERColors.accentGold,
+                    modifier = Modifier.clickable { appState.showPaywall = true }
+                )
+            }
+
+            // AD label
             Text(
-                "mindfulness app \u2014 download free",
-                fontSize = 11.sp,
+                "AD",
+                fontSize = 8.sp,
                 color = ERColors.dimText,
-                letterSpacing = 1.sp
-            )
-            Spacer(modifier = Modifier.width(12.dp))
-            Text(
-                "Remove",
-                fontSize = 11.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = ERColors.accentGold,
-                modifier = Modifier.clickable { appState.showPaywall = true }
+                modifier = Modifier.align(Alignment.TopEnd).padding(end = 8.dp, top = 4.dp)
             )
         }
-
-        // AD label
-        Text(
-            "AD",
-            fontSize = 8.sp,
-            color = ERColors.dimText,
-            modifier = Modifier.align(Alignment.TopEnd).padding(end = 8.dp, top = 4.dp)
-        )
     }
 }

@@ -23,12 +23,16 @@ import androidx.compose.ui.unit.sp
 import com.endlessrumination.AppState
 import com.endlessrumination.model.VoicePack
 import com.endlessrumination.model.VoicePackVoice
+import com.endlessrumination.service.rememberActivityProvider
 import com.endlessrumination.theme.ERColors
 import com.endlessrumination.theme.ERTypography
+import kotlinx.coroutines.launch
 
 @Composable
 fun PackDetailScreen(pack: VoicePack, appState: AppState, onBack: () -> Unit) {
     val isOwned = appState.ownedPackIDs.contains(pack.productID)
+    val scope = rememberCoroutineScope()
+    val activityProvider = rememberActivityProvider()
 
     Box(
         modifier = Modifier
@@ -107,9 +111,9 @@ fun PackDetailScreen(pack: VoicePack, appState: AppState, onBack: () -> Unit) {
             PurchaseBar(
                 pack = pack,
                 isOwned = isOwned,
+                price = appState.getPackPrice(pack.productID),
                 onPurchase = {
-                    // Stub: add pack to owned
-                    appState.ownedPackIDs = appState.ownedPackIDs + pack.productID
+                    scope.launch { appState.purchasePack(pack.productID, activityProvider) }
                 }
             )
         }
@@ -229,7 +233,7 @@ private fun VoicePreviewCard(voice: VoicePackVoice, packColor: Color) {
 }
 
 @Composable
-private fun PurchaseBar(pack: VoicePack, isOwned: Boolean, onPurchase: () -> Unit) {
+private fun PurchaseBar(pack: VoicePack, isOwned: Boolean, price: String = "$4.99", onPurchase: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -273,7 +277,7 @@ private fun PurchaseBar(pack: VoicePack, isOwned: Boolean, onPurchase: () -> Uni
                 )
             } else {
                 Text(
-                    "Unlock ${pack.voices.size} Voices \u2014 $4.99",
+                    "Unlock ${pack.voices.size} Voices \u2014 $price",
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color.White

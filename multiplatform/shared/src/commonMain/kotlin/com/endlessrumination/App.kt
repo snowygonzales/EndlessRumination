@@ -8,14 +8,33 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import com.endlessrumination.service.BillingService
 import com.endlessrumination.theme.ERColors
 import com.endlessrumination.ui.*
 
 @Composable
 fun App() {
     val appState = remember { AppState() }
+
+    // Initialize billing service
+    LaunchedEffect(Unit) {
+        val billing = BillingService(appState)
+        appState.billingService = billing
+        billing.initialize()
+        billing.loadProducts()
+        billing.restorePurchases()
+    }
+
+    // Dispose billing on exit
+    DisposableEffect(Unit) {
+        onDispose {
+            appState.billingService?.dispose()
+        }
+    }
 
     MaterialTheme(
         colorScheme = darkColorScheme(

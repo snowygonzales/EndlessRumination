@@ -44,6 +44,16 @@ class Settings(BaseSettings):
     # Batch generation
     parallel_batch_size: int = 5  # Claude calls to fire at once
 
+    # Apple App Store Server API v2
+    apple_key_id: str = ""
+    apple_issuer_id: str = ""
+    apple_private_key_path: str = ""
+    apple_bundle_id: str = "com.endlessrumination.kmp"
+
+    # Google Play Developer API
+    google_play_service_account_json: str = ""
+    google_play_package_name: str = "com.endlessrumination"
+
 
 @lru_cache
 def get_settings() -> Settings:

@@ -7,10 +7,11 @@ import androidx.compose.runtime.setValue
 import com.endlessrumination.model.Lens
 import com.endlessrumination.model.Take
 import com.endlessrumination.model.VoicePack
+import com.endlessrumination.service.*
 
 enum class AppScreen { SPLASH, INPUT, LOADING, TAKES }
 
-class AppState {
+class AppState : BillingCallback {
     var currentScreen by mutableStateOf(AppScreen.SPLASH)
     var problemText by mutableStateOf("")
     var takes by mutableStateOf<List<Take>>(emptyList())
@@ -24,6 +25,57 @@ class AppState {
     var showShop by mutableStateOf(false)
     var ownedPackIDs by mutableStateOf<Set<String>>(emptySet())
 
+    // Billing
+    var billingService: BillingService? = null
+    var purchaseState by mutableStateOf(PurchaseUiState.IDLE)
+
+    // BillingCallback implementation
+    override fun onProStatusChanged(isPro: Boolean) {
+        this.isPro = isPro
+    }
+
+    override fun onOwnedPacksChanged(packIDs: Set<String>) {
+        this.ownedPackIDs = packIDs
+    }
+
+    override fun onPurchaseStateChanged(state: PurchaseUiState) {
+        this.purchaseState = state
+    }
+
+    // Purchase actions
+    suspend fun purchasePro(activityProvider: () -> Any?) {
+        val result = billingService?.purchaseSubscription(
+            BillingProductIds.PRO_MONTHLY, activityProvider
+        )
+        when (result) {
+            is PurchaseResult.Success -> showPaywall = false
+            is PurchaseResult.Cancelled -> { /* stay on paywall */ }
+            is PurchaseResult.Pending -> { /* show pending message */ }
+            is PurchaseResult.Error -> { /* show error */ }
+            null -> {
+                // No billing service (debug mode) — toggle directly
+                isPro = true
+                showPaywall = false
+            }
+        }
+    }
+
+    suspend fun purchasePack(productId: String, activityProvider: () -> Any?) {
+        val result = billingService?.purchaseOneTime(productId, activityProvider)
+        if (result == null) {
+            // No billing service (debug mode) — toggle directly
+            ownedPackIDs = ownedPackIDs + productId
+        }
+    }
+
+    suspend fun restorePurchases() {
+        billingService?.restorePurchases()
+    }
+
+    fun getProPrice(): String = billingService?.proPrice ?: "$9.99"
+    fun getPackPrice(productId: String): String = billingService?.packPrice(productId) ?: "$4.99"
+
+    // Existing computed properties
     val wordCount: Int
         get() = problemText.trim().split("\\s+".toRegex()).filter { it.isNotEmpty() }.size
 

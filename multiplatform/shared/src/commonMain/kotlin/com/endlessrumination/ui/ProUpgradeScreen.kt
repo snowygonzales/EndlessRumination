@@ -5,8 +5,10 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -16,11 +18,18 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.endlessrumination.AppState
+import com.endlessrumination.service.PurchaseUiState
+import com.endlessrumination.service.rememberActivityProvider
 import com.endlessrumination.theme.ERColors
 import com.endlessrumination.theme.ERTypography
+import kotlinx.coroutines.launch
 
 @Composable
 fun ProUpgradeScreen(appState: AppState) {
+    val scope = rememberCoroutineScope()
+    val activityProvider = rememberActivityProvider()
+    val isPurchasing = appState.purchaseState == PurchaseUiState.PURCHASING
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -95,20 +104,28 @@ fun ProUpgradeScreen(appState: AppState) {
                     .padding(horizontal = 24.dp)
                     .clip(RoundedCornerShape(14.dp))
                     .background(ERColors.warmGradient)
-                    .clickable {
-                        // Stub: directly set isPro
-                        appState.isPro = true
-                        appState.showPaywall = false
-                    }
+                    .then(
+                        if (!isPurchasing) Modifier.clickable {
+                            scope.launch { appState.purchasePro(activityProvider) }
+                        } else Modifier
+                    )
                     .padding(vertical = 18.dp),
                 contentAlignment = Alignment.Center
             ) {
-                Text(
-                    "Subscribe for $9.99/month",
-                    fontSize = 17.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = Color.White
-                )
+                if (isPurchasing) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(22.dp),
+                        color = Color.White,
+                        strokeWidth = 2.dp
+                    )
+                } else {
+                    Text(
+                        "Subscribe for ${appState.getProPrice()}/month",
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color.White
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -121,7 +138,7 @@ fun ProUpgradeScreen(appState: AppState) {
                 modifier = Modifier
                     .fillMaxWidth()
                     .clickable {
-                        // Stub: no-op for now
+                        scope.launch { appState.restorePurchases() }
                     },
                 textAlign = TextAlign.Center
             )

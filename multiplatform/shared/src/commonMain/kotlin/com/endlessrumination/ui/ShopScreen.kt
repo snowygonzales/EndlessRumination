@@ -156,7 +156,7 @@ private fun ProCard(appState: AppState) {
                 }
 
                 Text(
-                    "$9.99",
+                    appState.getProPrice(),
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Bold,
                     color = ERColors.background,
@@ -233,6 +233,7 @@ private fun VoicePacksSection(appState: AppState, onPackTap: (VoicePack) -> Unit
             PackCardView(
                 pack = pack,
                 isOwned = appState.ownedPackIDs.contains(pack.productID),
+                price = appState.getPackPrice(pack.productID),
                 onTap = { onPackTap(pack) }
             )
         }
@@ -240,7 +241,7 @@ private fun VoicePacksSection(appState: AppState, onPackTap: (VoicePack) -> Unit
 }
 
 @Composable
-private fun PackCardView(pack: VoicePack, isOwned: Boolean, onTap: () -> Unit) {
+private fun PackCardView(pack: VoicePack, isOwned: Boolean, price: String = "$4.99", onTap: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -282,7 +283,7 @@ private fun PackCardView(pack: VoicePack, isOwned: Boolean, onTap: () -> Unit) {
                 )
             } else {
                 Text(
-                    "$4.99",
+                    price,
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Bold,
                     color = pack.color,

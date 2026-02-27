@@ -42,6 +42,8 @@ kotlin {
         androidMain.dependencies {
             implementation(libs.ktor.client.okhttp)
             implementation(libs.kotlinx.coroutines.android)
+            implementation(libs.google.billing)
+            implementation(libs.google.admob)
         }
 
         iosMain.dependencies {

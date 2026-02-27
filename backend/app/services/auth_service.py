@@ -54,12 +54,15 @@ async def get_current_user(
         return None
 
     payload = decode_token(credentials.credentials)
-    user_id = payload.get("sub")
-    if not user_id:
+    user_id_str = payload.get("sub")
+    if not user_id_str:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token payload"
         )
 
+    # Convert to UUID object so SQLAlchemy's UUID type works with both
+    # PostgreSQL (production) and SQLite (tests)
+    user_id = UUID(user_id_str)
     result = await db.execute(select(UserDB).where(UserDB.id == user_id))
     user = result.scalar_one_or_none()
     if not user:

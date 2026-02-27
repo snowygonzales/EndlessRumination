@@ -60,6 +60,28 @@ class ApiClient {
         return json.decodeFromString(response.bodyAsText())
     }
 
+    suspend fun verifyReceipt(
+        baseUrl: String,
+        platform: String,
+        productId: String,
+        purchaseToken: String,
+        isSubscription: Boolean,
+        token: String? = null
+    ): VerifyReceiptResponse {
+        val request = VerifyReceiptRequest(
+            platform = platform,
+            productId = productId,
+            purchaseToken = purchaseToken,
+            isSubscription = isSubscription
+        )
+        val response = client.post("$baseUrl/api/v1/subscription/verify-receipt") {
+            contentType(ContentType.Application.Json)
+            (token ?: authToken)?.let { bearerAuth(it) }
+            setBody(json.encodeToString(VerifyReceiptRequest.serializer(), request))
+        }
+        return json.decodeFromString(response.bodyAsText())
+    }
+
     fun generateBatch(
         baseUrl: String,
         problem: String,
