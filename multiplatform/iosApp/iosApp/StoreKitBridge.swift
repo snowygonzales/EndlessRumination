@@ -7,7 +7,7 @@ import Shared
 class StoreKitBridge: StoreKitBridgeProtocol {
     private var products: [String: Product] = [:]
     private var transactionListener: Task<Void, Never>?
-    private var entitlementCallback: ((KotlinBoolean, Set<NSString>) -> Void)?
+    private var entitlementCallback: ((KotlinBoolean, Set<String>) -> Void)?
 
     func initialize() {
         // Listen for transaction updates (renewals, refunds, etc.)
@@ -23,7 +23,7 @@ class StoreKitBridge: StoreKitBridgeProtocol {
         checkEntitlements()
     }
 
-    func setEntitlementCallback(callback: @escaping (KotlinBoolean, Set<NSString>) -> Void) {
+    func setEntitlementCallback(callback: @escaping (KotlinBoolean, Set<String>) -> Void) {
         self.entitlementCallback = callback
     }
 
@@ -82,13 +82,13 @@ class StoreKitBridge: StoreKitBridgeProtocol {
     }
 
     func restorePurchases(
-        completion: @escaping (KotlinBoolean, Set<NSString>, String?) -> Void
+        completion: @escaping @Sendable (KotlinBoolean, Set<String>, String?) -> Void
     ) {
         Task {
             do {
                 try await AppStore.sync()
                 var isPro = false
-                var ownedPacks = Set<NSString>()
+                var ownedPacks = Set<String>()
 
                 for await result in Transaction.currentEntitlements {
                     if case .verified(let transaction) = result {
@@ -96,7 +96,7 @@ class StoreKitBridge: StoreKitBridgeProtocol {
                             if transaction.productID == "com.endlessrumination.pro.monthly" {
                                 isPro = true
                             } else {
-                                ownedPacks.insert(transaction.productID as NSString)
+                                ownedPacks.insert(transaction.productID)
                             }
                         }
                     }
@@ -113,7 +113,7 @@ class StoreKitBridge: StoreKitBridgeProtocol {
     private func checkEntitlements() {
         Task {
             var isPro = false
-            var ownedPacks = Set<NSString>()
+            var ownedPacks = Set<String>()
 
             for await result in Transaction.currentEntitlements {
                 if case .verified(let transaction) = result {
@@ -121,7 +121,7 @@ class StoreKitBridge: StoreKitBridgeProtocol {
                         if transaction.productID == "com.endlessrumination.pro.monthly" {
                             isPro = true
                         } else {
-                            ownedPacks.insert(transaction.productID as NSString)
+                            ownedPacks.insert(transaction.productID)
                         }
                     }
                 }
