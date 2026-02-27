@@ -3,7 +3,7 @@
 ## Project Overview
 Psychology app (KMP multiplatform) + Python backend (FastAPI). Users describe a problem, then doom-scroll through AI-generated perspectives from different personas. Each perspective fades forever unless user is a Pro subscriber. Base lenses (0-19) come with free/Pro tiers; purchasable Voice Packs (20-39) add 5 historical-figure voices each.
 
-**Multiplatform (primary):** KMP + Compose Multiplatform in `multiplatform/` targets both iOS and Android from shared Kotlin code. All 11 screens, real billing (Google Play Billing v7 + StoreKit 2 via Swift bridge), AdMob ads, and backend receipt validation are implemented. The original SwiftUI app in `ios/` is archived as reference code — all active development is in `multiplatform/`.
+**Multiplatform (primary):** KMP + Compose Multiplatform in `multiplatform/` targets both iOS and Android from shared Kotlin code. All 11 screens, real billing (Google Play Billing v7 + StoreKit 2 via Swift bridge), AdMob ads (real on both platforms), and backend receipt validation are implemented. The original SwiftUI app in `ios/` is archived as reference code — all active development is in `multiplatform/`.
 
 ## Key Commands
 - Backend (local): `cd backend && source .venv/bin/activate && uvicorn app.main:app --reload`
@@ -17,8 +17,8 @@ Psychology app (KMP multiplatform) + Python backend (FastAPI). Users describe a 
 - KMP Android publish to Play Internal Testing: `cd multiplatform && JAVA_HOME=/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home ./gradlew :androidApp:publishReleaseBundle` (requires `play-service-account.json`)
 - KMP iOS framework: `cd multiplatform && JAVA_HOME=/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home ./gradlew :shared:linkDebugFrameworkIosSimulatorArm64`
 - KMP iOS Xcode: `cd multiplatform/iosApp && xcodegen generate && open iosApp.xcodeproj`
+- KMP iOS TestFlight: `cd multiplatform/iosApp && xcodegen generate && xcodebuild -scheme iosApp -sdk iphoneos -configuration Release -archivePath /tmp/KMP-ER.xcarchive archive && xcodebuild -exportArchive -archivePath /tmp/KMP-ER.xcarchive -exportOptionsPlist /tmp/KMP-ExportOptions.plist -exportPath /tmp/KMP-ERExport -allowProvisioningUpdates -authenticationKeyPath ~/.appstoreconnect/private_keys/AuthKey_8YM9M9P47X.p8 -authenticationKeyID 8YM9M9P47X -authenticationKeyIssuerID e5829743-777b-4a9f-a968-30a8714fb272`
 - Android emulator: `~/Library/Android/sdk/emulator/emulator -avd Pixel_API_35 &`
-- TestFlight upload: `cd ios && xcodegen generate && xcodebuild -scheme EndlessRumination -sdk iphoneos -configuration Release -archivePath /tmp/ER.xcarchive archive && xcodebuild -exportArchive -archivePath /tmp/ER.xcarchive -exportOptionsPlist /tmp/ExportOptions.plist -exportPath /tmp/ERExport -allowProvisioningUpdates -authenticationKeyPath ~/.appstoreconnect/private_keys/AuthKey_8YM9M9P47X.p8 -authenticationKeyID 8YM9M9P47X -authenticationKeyIssuerID e5829743-777b-4a9f-a968-30a8714fb272`
 - Deploy to Railway: `railway up --detach` (from project root)
 
 ## Architecture
@@ -45,7 +45,7 @@ Psychology app (KMP multiplatform) + Python backend (FastAPI). Users describe a 
 - PostgreSQL 16 + Redis via Homebrew (not Docker)
 
 ### CLI Publishing (both platforms — no GUI needed)
-- **iOS → TestFlight**: App Store Connect API key `8YM9M9P47X` at `~/.appstoreconnect/private_keys/AuthKey_8YM9M9P47X.p8`, Issuer `e5829743-777b-4a9f-a968-30a8714fb272` — `xcodebuild archive + exportArchive` with auth flags (see Key Commands)
+- **iOS → TestFlight**: App Store Connect API key `8YM9M9P47X` at `~/.appstoreconnect/private_keys/AuthKey_8YM9M9P47X.p8`, Issuer `e5829743-777b-4a9f-a968-30a8714fb272` — `xcodebuild archive + exportArchive` with auth flags (see Key Commands). Bundle ID: `com.endlessrumination.EndlessRumination`. ExportOptions plist at `/tmp/KMP-ExportOptions.plist` (method: app-store-connect, teamID: R6N5B4SDWH, destination: upload, signingStyle: automatic).
 - **Android → Google Play Internal Testing**: Google Cloud service account (`play-service-account.json` in `multiplatform/`, gitignored) linked via Google Play Console Users & Permissions — `./gradlew publishReleaseBundle` builds signed AAB + uploads to internal track
 - **Google Play Console**: Account ID `6253718630117210435`, app package `com.endlessrumination`, developer identity verification pending (draft releases only until verified)
 - **Google Cloud project**: `endless-rumination` — Android Publisher API enabled, service account created and linked to Play Console
@@ -68,6 +68,7 @@ Psychology app (KMP multiplatform) + Python backend (FastAPI). Users describe a 
 - `multiplatform/shared/src/commonMain/kotlin/.../service/BillingModels.kt` — Shared billing types, sealed classes, product IDs
 - `multiplatform/shared/src/commonMain/kotlin/.../service/BillingService.kt` — expect/actual billing abstraction (Google Play Billing + StoreKit 2)
 - `multiplatform/iosApp/iosApp/StoreKitBridge.swift` — Swift StoreKit 2 bridge callable from Kotlin/Native
+- `multiplatform/iosApp/iosApp/AdBannerBridge.swift` — Swift Google Mobile Ads bridge (GADBannerView wrapper)
 - `backend/app/services/receipt_validator.py` — Abstract receipt validation base
 - `backend/app/services/apple_validator.py` — App Store Server API v2 validation
 - `backend/app/services/google_validator.py` — Google Play Developer API validation
@@ -103,7 +104,7 @@ Google Play Internal Testing is the Android equivalent of TestFlight. Uses `grad
 - Once verified: change to `ReleaseStatus.COMPLETED` in `androidApp/build.gradle.kts` for auto-rollout to testers
 - Testers get notified in Play Store → install/update via normal Play Store flow
 - No "Install from unknown sources" needed, auto-updates work
-- Remember to bump `versionCode` in `androidApp/build.gradle.kts` before each publish (currently at 4)
+- Remember to bump `versionCode` in `androidApp/build.gradle.kts` before each publish (currently at 5)
 
 ## Monetization (IAP + Ads + Backend Validation)
 
@@ -115,12 +116,15 @@ Google Play Internal Testing is the Android equivalent of TestFlight. Uses `grad
 - **App.kt** lifecycle: `LaunchedEffect` → `initialize()` + `loadProducts()` + `restorePurchases()`; `DisposableEffect` → `dispose()`
 - Product IDs: `com.endlessrumination.pro.monthly` (subscription), `com.endlessrumination.pack.{strategists,revolutionaries,philosophers,creators}` (one-time)
 
-### AdMob
-- **Common**: `PlatformAdBanner.kt` (expect composable), `AdBannerView.kt` (wrapper with chrome)
-- **Android**: `PlatformAdBanner.android.kt` — `AndroidView` wrapping `AdView`, test ad unit `ca-app-pub-3940256099942544/6300978111`
-- **iOS**: `PlatformAdBanner.ios.kt` — placeholder (TODO: `UIKitView` with `GADBannerView`)
-- **AndroidManifest.xml**: AdMob `APPLICATION_ID` meta-data (test: `ca-app-pub-3940256099942544~3347511713`)
-- Swap test ad IDs for real ones before production release
+### AdMob (real IDs on both platforms)
+- **Common**: `PlatformAdBanner.kt` (expect composable), `AdBannerView.kt` (wrapper with chrome, "Remove" → paywall)
+- **Android**: `PlatformAdBanner.android.kt` — `AndroidView` wrapping `AdView`, ad unit `ca-app-pub-5300605522420042/6942754502`
+- **iOS**: `PlatformAdBanner.ios.kt` — `UIKitView` with `AdBannerProvider` factory lambda → `AdBannerBridge.swift` (`AdBannerWrapperView` wrapping `GADBannerView`), ad unit `ca-app-pub-5300605522420042/1359255336`
+- **iOS SDK**: Google Mobile Ads 11.13.0 via SPM (`project.yml` packages section)
+- **AndroidManifest.xml**: AdMob app ID `ca-app-pub-5300605522420042~5657592998`
+- **iOS Info.plist**: `GADApplicationIdentifier` = `ca-app-pub-5300605522420042~6341428784`, plus SKAdNetwork IDs
+- **iOS bridge pattern**: `AdBannerProvider.shared.createBanner` factory set in `iOSApp.swift` init, returns `AdBannerWrapperView` (UIView subclass that auto-finds rootViewController via responder chain)
+- Banner shown on TakesScreen when `!isPro`, 50dp height
 
 ### Backend Receipt Validation
 - **`POST /api/v1/subscription/verify-receipt`** — routes to Apple or Google validator by `platform` field
@@ -136,7 +140,8 @@ Google Play Internal Testing is the Android equivalent of TestFlight. Uses `grad
 - Ktor 3.1.1 (OkHttp engine Android, Darwin engine iOS) for HTTP + SSE
 - Kotlinx.serialization 1.8.0 for JSON, Kotlinx.coroutines 1.10.1 for async
 - Android: min SDK 26, target SDK 35, bundle ID `com.endlessrumination`
-- KMP iOS: bundle ID `com.endlessrumination.kmp`, requires `CADisableMinimumFrameDurationOnPhone` in Info.plist
+- KMP iOS: bundle ID `com.endlessrumination.EndlessRumination`, requires `CADisableMinimumFrameDurationOnPhone` in Info.plist
+- Google Mobile Ads SDK 11.13.0 (iOS via SPM, Android via play-services-ads 23.6.0)
 - Requires JAVA_HOME pointing to OpenJDK 17 (`/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home`)
 
 ## What NOT to Do
