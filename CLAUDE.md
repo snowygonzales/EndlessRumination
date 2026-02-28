@@ -38,7 +38,7 @@ EndlessRumination/
 ├── android/                    # Jetpack Compose native Android app
 ├── scripts/                    # IAP product creation scripts (ASC + Play)
 ├── multiplatform/              # ARCHIVED — KMP reference code only
-├── docs/
+├── docs/                       # Privacy policy, ToS, support, release checklist
 ├── CLAUDE.md
 └── KICKOFF.md
 ```
@@ -51,7 +51,10 @@ EndlessRumination/
 - **Production API**: https://backend-production-5537.up.railway.app
 - **Railway dashboard**: https://railway.com/project/30951286-357e-4529-a21c-bb527d62eb13
 - **Privacy policy**: https://github.com/snowygonzales/EndlessRumination/blob/master/docs/privacy-policy.md
+- **Terms of Service**: https://github.com/snowygonzales/EndlessRumination/blob/master/docs/terms-of-service.md
 - **Support page**: https://github.com/snowygonzales/EndlessRumination/blob/master/docs/support.md
+- **Release checklist**: `docs/release_todo.md` — manual console tasks remaining before launch
+- **GitHub repo**: Public (required for reviewer-accessible privacy policy/ToS URLs)
 - iOS debug builds → localhost:8000, release builds → Railway URL
 - Android always uses Railway production URL
 - PostgreSQL 16 + Redis via Homebrew (not Docker)
@@ -66,29 +69,29 @@ EndlessRumination/
 
 ### iOS (SwiftUI)
 - `ios/project.yml` — xcodegen project definition (SPM packages, build settings, Info.plist)
-- `ios/EndlessRumination/App/EndlessRuminationApp.swift` — App entry point, GAD init
-- `ios/EndlessRumination/App/AppState.swift` — @Observable state management
+- `ios/EndlessRumination/App/EndlessRuminationApp.swift` — App entry point, GAD init, ATT prompt, AI consent overlay
+- `ios/EndlessRumination/App/AppState.swift` — @Observable state management, AI consent persistence
 - `ios/EndlessRumination/Services/APIClient.swift` — URLSession HTTP + SSE streaming actor
 - `ios/EndlessRumination/Services/SubscriptionManager.swift` — StoreKit 2 billing, receipt verification
 - `ios/EndlessRumination/Services/SafetyService.swift` — Client blocklist + server safety check
 - `ios/EndlessRumination/Models/` — Take, Lens, VoicePack, User
-- `ios/EndlessRumination/Views/` — All 11 screens + AdBannerView (real GADBannerView)
+- `ios/EndlessRumination/Views/` — All screens + AdBannerView, AIConsentView, OnboardingView
 - `ios/EndlessRumination/Theme/` — ERColors, ERTypography, ERAnimations
 
 ### Android (Jetpack Compose)
 - `android/app/build.gradle.kts` — App build config (Compose BOM, Ktor, billing, ads, signing)
 - `android/app/src/main/kotlin/.../MainActivity.kt` — Activity entry point, MobileAds + HapticService init
-- `android/app/src/main/kotlin/.../App.kt` — Root composable, AnimatedContent navigation, billing lifecycle
-- `android/app/src/main/kotlin/.../AppState.kt` — ViewModel state management (mutableStateOf, BillingCallback)
-- `android/app/src/main/kotlin/.../ApiClient.kt` — Ktor HTTP + SSE streaming
+- `android/app/src/main/kotlin/.../App.kt` — Root composable, AnimatedContent navigation, billing lifecycle, AI consent overlay
+- `android/app/src/main/kotlin/.../AppState.kt` — ViewModel state management (mutableStateOf, BillingCallback, receipt verification)
+- `android/app/src/main/kotlin/.../ApiClient.kt` — Ktor HTTP + SSE streaming, auth + receipt endpoints
 - `android/app/src/main/kotlin/.../Platform.kt` — BASE_URL constant
 - `android/app/src/main/kotlin/.../service/BillingService.kt` — Google Play Billing v7
 - `android/app/src/main/kotlin/.../service/BillingModels.kt` — Billing types, sealed classes, product IDs
 - `android/app/src/main/kotlin/.../service/HapticService.kt` — Vibration feedback
 - `android/app/src/main/kotlin/.../service/SafetyService.kt` — Client blocklist + server safety check
 - `android/app/src/main/kotlin/.../service/ActivityProvider.kt` — Activity context for billing
-- `android/app/src/main/kotlin/.../model/` — Take, Lens, VoicePack, User
-- `android/app/src/main/kotlin/.../ui/` — All 11 screens + PlatformAdBanner (AndroidView wrapping AdView)
+- `android/app/src/main/kotlin/.../model/` — Take, Lens (with isFree/isWise), VoicePack, User, AuthResponse
+- `android/app/src/main/kotlin/.../ui/` — All screens + PlatformAdBanner, AIConsentScreen, OnboardingScreen
 - `android/app/src/main/kotlin/.../theme/` — ERColors, ERTypography
 
 ### Backend
@@ -182,10 +185,11 @@ All 5 Android IAP products are created in Google Play Console:
 - Restore purchases button in ShopView
 
 ### Android Billing (Google Play Billing v7)
-- `BillingService` — standalone class wrapping `BillingClient`
-- `AppState : ViewModel(), BillingCallback` — receives purchase state changes
+- `BillingService` — standalone class wrapping `BillingClient`, calls `onReceiptReady` after purchase
+- `AppState : ViewModel(), BillingCallback` — receives purchase state changes, verifies receipts on server via `viewModelScope`
 - `App.kt` lifecycle: `LaunchedEffect` → `initialize()` + `loadProducts()` + `checkEntitlements()`; `DisposableEffect` → `dispose()`
 - Product IDs: `com.endlessrumination.pro.monthly` (subscription), `com.endlessrumination.pack.{strategists,revolutionaries,philosophers,creators}` (one-time)
+- Purchase error messages displayed on ProUpgrade + PackDetail screens; loading spinner on both
 
 ### AdMob (real IDs on both platforms)
 - **iOS**: `BannerAdRepresentable` (UIViewRepresentable wrapping GADBannerView), ad unit `ca-app-pub-5300605522420042/1359255336`, debug uses test ID `ca-app-pub-3940256099942544/2435281174`
@@ -202,8 +206,12 @@ All 5 Android IAP products are created in Google Play Console:
 - **Google**: Google Play Developer API with service account → `subscriptionsv2.get` / `products.get`
 - Config: `apple_key_id`, `apple_issuer_id`, `apple_private_key_path`, `google_play_service_account_json` in Settings
 - Updates user `subscription_tier` (pro) or `owned_pack_ids` (comma-separated) in DB
-- Client calls verify receipt after each successful purchase (background, non-blocking)
+- Both clients call verify receipt after each successful purchase (background, non-blocking)
 - 7 backend tests in `test_subscription.py` (mocked validators)
+
+### Current Build Numbers
+- iOS: v0.4.0 build 14 (TestFlight)
+- Android: versionCode 6 (Internal Testing, DRAFT status)
 
 ## Tech Stacks
 
@@ -223,6 +231,19 @@ All 5 Android IAP products are created in Google Play Console:
 - Kotlin 2.1.20, AGP 8.7.3, Gradle 8.11.1
 - min SDK 26, target SDK 35
 - Requires JAVA_HOME pointing to OpenJDK 17
+
+## Launch Compliance (both platforms)
+All code-level app store compliance items are implemented:
+- **AI consent dialog** — Names Anthropic/Claude, gates first problem submission (UserDefaults/SharedPreferences)
+- **Content report/flag** — Flag icon on take cards with confirmation dialog
+- **Medical disclaimer** — "Not a substitute for professional mental health care" on input + shop screens
+- **ATT prompt** — iOS: `ATTrackingManager.requestTrackingAuthorization` on app become active
+- **AD_ID permission** — Android: `com.google.android.gms.permission.AD_ID` in manifest
+- **Subscription terms** — Full auto-renewal/cancellation disclosure on paywall + Privacy Policy/ToS links
+- **Account deletion** — In-app delete option in Shop → opens mailto: flow
+- **Privacy Policy** — Accurate AdMob, AI processing, GDPR/CCPA disclosures (`docs/privacy-policy.md`)
+- **Terms of Service** — AI content disclaimer, subscription terms, liability limits (`docs/terms-of-service.md`)
+- **Remaining manual tasks** — See `docs/release_todo.md`
 
 ## What NOT to Do
 - Don't build a React/web app
