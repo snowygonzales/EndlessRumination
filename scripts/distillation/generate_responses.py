@@ -53,11 +53,18 @@ PROGRESS_PATH = DATA_DIR / ".generate_responses_progress.json"
 TEACHER_MODEL = "claude-sonnet-4-20250514"
 MAX_TOKENS = 400
 
-# Concurrency: stay within Anthropic rate limits
-# Sonnet: 4000 RPM (requests per minute) on paid tier
-MAX_CONCURRENT = 20  # conservative
+# Concurrency: stay within Anthropic output token rate limit (8K tokens/min)
+# Each response ~300 tokens output, so ~26 responses/min max
+# 2 concurrent requests keeps us well under the limit
+MAX_CONCURRENT = 2
 RETRY_MAX = 3
 RETRY_DELAY = 5.0
+
+# Cost cap: stop generating once estimated spend reaches this amount
+# Sonnet pricing: ~$3/M input + ~$15/M output tokens
+# Each call: ~500 input tokens ($0.0015) + ~300 output tokens ($0.0045) ≈ $0.006/call
+COST_PER_CALL_ESTIMATE = 0.006
+COST_CAP_USD = 100.0
 
 
 def _parse_take(text: str) -> dict:
@@ -160,9 +167,20 @@ async def main():
     completed = load_progress()
     remaining = [p for p in prompts if p["problem"] not in completed]
 
-    print(f"Loaded {len(prompts)} prompts, {len(completed)} already done, {len(remaining)} remaining")
-    print(f"Generating {len(remaining)} x 20 lenses = {len(remaining) * 20} API calls")
-    print(f"Estimated cost: ${len(remaining) * 20 * 0.008:.0f}-${len(remaining) * 20 * 0.012:.0f}")
+    max_calls = int(COST_CAP_USD / COST_PER_CALL_ESTIMATE)
+    max_prompts = max_calls // 20  # 20 lenses per prompt
+    if len(remaining) > max_prompts:
+        print(f"Loaded {len(prompts)} prompts, {len(completed)} already done, {len(remaining)} remaining")
+        print(f"Cost cap: ${COST_CAP_USD:.0f} → max {max_prompts} prompts ({max_calls} API calls)")
+        print(f"Trimming from {len(remaining)} to {max_prompts} prompts to stay under cap")
+        remaining = remaining[:max_prompts]
+    else:
+        print(f"Loaded {len(prompts)} prompts, {len(completed)} already done, {len(remaining)} remaining")
+
+    total_calls = len(remaining) * 20
+    estimated_cost = total_calls * COST_PER_CALL_ESTIMATE
+    print(f"Generating {len(remaining)} x 20 lenses = {total_calls} API calls")
+    print(f"Estimated cost: ~${estimated_cost:.0f} (cap: ${COST_CAP_USD:.0f})")
     print(f"Concurrency: {MAX_CONCURRENT} simultaneous requests\n")
 
     if not remaining:
@@ -174,6 +192,7 @@ async def main():
 
     # Open output file in append mode for resume support
     total_generated = 0
+    estimated_spend = 0.0
     start_time = time.time()
 
     with open(OUTPUT_PATH, "a") as f:
@@ -186,6 +205,7 @@ async def main():
                 f.write(json.dumps(r, ensure_ascii=False) + "\n")
 
             total_generated += len(results)
+            estimated_spend += len(results) * COST_PER_CALL_ESTIMATE
             completed.add(prompt["problem"])
 
             # Progress reporting every 10 prompts
@@ -196,11 +216,18 @@ async def main():
                 print(
                     f"  [{i+1}/{len(remaining)}] "
                     f"{total_generated} takes generated "
-                    f"({rate:.1f} takes/s, ETA {eta/60:.0f}m)"
+                    f"(~${estimated_spend:.0f} spent, {rate:.1f} takes/s, ETA {eta/60:.0f}m)"
                 )
                 # Save progress periodically
                 save_progress(completed)
                 f.flush()
+
+            # Hard stop if approaching cost cap
+            if estimated_spend >= COST_CAP_USD * 0.95:
+                print(f"\n  COST CAP REACHED (~${estimated_spend:.0f} of ${COST_CAP_USD:.0f}). Stopping.")
+                save_progress(completed)
+                f.flush()
+                break
 
     save_progress(completed)
 

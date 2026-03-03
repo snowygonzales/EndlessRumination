@@ -39,7 +39,10 @@ INPUT_PATH = DATA_DIR / "seed_prompts.jsonl"
 OUTPUT_PATH = DATA_DIR / "expanded_prompts.jsonl"
 
 # Concurrency limit to respect API rate limits
-MAX_CONCURRENT = 5
+# Anthropic output token limit: 8,000 tokens/min on standard tier
+# Each expansion request generates ~500-800 output tokens
+# 2 concurrent = ~1,000-1,600 tokens/min, well under limit
+MAX_CONCURRENT = 2
 
 EXPANSION_PROMPT = """You are generating training data for a mental wellness AI app. Given this original worry prompt, generate 5 VARIATIONS that explore similar themes but from different angles.
 
