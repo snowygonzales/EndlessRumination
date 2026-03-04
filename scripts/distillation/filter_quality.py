@@ -7,6 +7,7 @@ Scores each response on 4 dimensions (1-5) using Claude Haiku:
   - Safety: No harmful advice (pass/fail)
 
 Keeps only responses scoring 4+ on all dimensions.
+Shares a $100 pipeline budget with steps 1.3 and 1.5 via cost_tracker.
 
 Usage:
     source backend/.venv/bin/activate
@@ -28,6 +29,15 @@ from pathlib import Path
 import anthropic
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+sys.path.insert(0, str(PROJECT_ROOT))
+
+from scripts.distillation.cost_tracker import (
+    COST_HAIKU_CALL,
+    load_tracker,
+    print_budget_status,
+    record_spend,
+    step_budget,
+)
 
 # Load API key
 _env_path = PROJECT_ROOT / "backend" / ".env"
@@ -50,6 +60,8 @@ REJECTED_PATH = DATA_DIR / "rejected_responses.jsonl"
 SCORER_MODEL = "claude-haiku-4-5-20251001"
 MAX_CONCURRENT = 30  # Haiku has higher rate limits
 RETRY_MAX = 3
+
+STEP_NAME = "filter_quality"
 
 SCORING_PROMPT = """Score this AI-generated response on 4 dimensions. The response is from a persona-based wellness app that gives users fresh perspectives on their worries.
 
@@ -153,8 +165,25 @@ async def main():
                 responses.append(json.loads(line))
 
     print(f"Loaded {len(responses)} teacher responses")
+
+    # Shared pipeline budget — this step's allocation
+    tracker = load_tracker()
+    print_budget_status(tracker)
+    budget_left = step_budget(STEP_NAME, tracker)
+    if budget_left <= 0:
+        print(f"Budget for {STEP_NAME} exhausted. No calls will be made.")
+        return
+
+    estimated_cost = len(responses) * COST_HAIKU_CALL
+    max_responses = int(budget_left / COST_HAIKU_CALL)
+    if len(responses) > max_responses:
+        print(f"Budget left: ${budget_left:.2f} → can score {max_responses} of {len(responses)} responses")
+        print(f"Trimming to {max_responses} responses to stay under budget")
+        responses = responses[:max_responses]
+        estimated_cost = max_responses * COST_HAIKU_CALL
+
     print(f"Scoring with {SCORER_MODEL} (max concurrent: {MAX_CONCURRENT})")
-    print(f"Estimated cost: ~${len(responses) * 0.001:.0f}\n")
+    print(f"Estimated step cost: ~${estimated_cost:.2f}\n")
 
     client = anthropic.AsyncAnthropic(api_key=API_KEY)
     semaphore = asyncio.Semaphore(MAX_CONCURRENT)
@@ -162,6 +191,7 @@ async def main():
     # Score all responses
     kept = []
     rejected = []
+    estimated_spend = 0.0
     score_distribution = {"persona": [], "specificity": [], "impact": [], "safety": []}
     start_time = time.time()
 
@@ -195,14 +225,20 @@ async def main():
                 response["reject_reason"] = ", ".join(reasons)
                 rejected.append(response)
 
+        estimated_spend += len(batch) * COST_HAIKU_CALL
         elapsed = time.time() - start_time
         processed = batch_start + len(batch)
         rate = processed / elapsed if elapsed > 0 else 0
         print(
             f"  [{processed}/{len(responses)}] "
             f"kept={len(kept)} rejected={len(rejected)} "
-            f"({rate:.1f} responses/s)"
+            f"(~${estimated_spend:.2f} spent, {rate:.1f} responses/s)"
         )
+
+        # Hard stop if approaching pipeline budget
+        if estimated_spend >= budget_left * 0.95:
+            print(f"\n  BUDGET LIMIT REACHED (~${estimated_spend:.2f} of ${budget_left:.2f} remaining). Stopping.")
+            break
 
     # Write kept
     with open(OUTPUT_PATH, "w") as f:
@@ -214,12 +250,16 @@ async def main():
         for r in rejected:
             f.write(json.dumps(r, ensure_ascii=False) + "\n")
 
+    record_spend(STEP_NAME, estimated_spend)
+
     # Summary
     survival_rate = len(kept) / len(responses) * 100 if responses else 0
     print(f"\nDone! Survival rate: {survival_rate:.0f}%")
     print(f"  Kept:     {len(kept)} → {OUTPUT_PATH}")
     print(f"  Rejected: {len(rejected)} → {REJECTED_PATH}")
+    print(f"  Step spend: ~${estimated_spend:.2f}")
     print(f"  Time: {(time.time() - start_time) / 60:.1f} minutes")
+    print_budget_status()
 
     # Score distribution
     print("\nScore distribution (avg):")

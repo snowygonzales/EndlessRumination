@@ -7,6 +7,8 @@ the good ones from Phase 1.3/1.4. These teach the model what NOT to do:
   - Format violations (markdown, labels, wrong length)
   - Surface-level takes that don't engage deeply
 
+Shares a $100 pipeline budget with steps 1.3 and 1.4 via cost_tracker.
+
 Usage:
     source backend/.venv/bin/activate
     python scripts/distillation/generate_dpo_pairs.py
@@ -28,9 +30,17 @@ from pathlib import Path
 import anthropic
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(PROJECT_ROOT / "backend"))
 
 from app.lenses.definitions import LENSES
+from scripts.distillation.cost_tracker import (
+    COST_SONNET_CALL,
+    load_tracker,
+    print_budget_status,
+    record_spend,
+    step_budget,
+)
 
 # Load API key
 _env_path = PROJECT_ROOT / "backend" / ".env"
@@ -50,8 +60,10 @@ INPUT_PATH = DATA_DIR / "filtered_responses.jsonl"
 OUTPUT_PATH = DATA_DIR / "dpo_pairs.jsonl"
 
 TEACHER_MODEL = "claude-sonnet-4-20250514"
-MAX_CONCURRENT = 10
+MAX_CONCURRENT = 10  # Tier 2: 90K output tokens/min for Sonnet
 TARGET_PAIRS = 2000  # DPO pairs to generate
+
+STEP_NAME = "generate_dpo_pairs"
 
 # Bad response generation strategies
 BAD_STRATEGIES = [
@@ -166,14 +178,32 @@ async def main():
         selected.extend(sample)
 
     selected = selected[:TARGET_PAIRS]
+
+    # Shared pipeline budget — this step's allocation
+    tracker = load_tracker()
+    print_budget_status(tracker)
+    budget_left = step_budget(STEP_NAME, tracker)
+    if budget_left <= 0:
+        print(f"Budget for {STEP_NAME} exhausted. No calls will be made.")
+        return
+
+    max_affordable = int(budget_left / COST_SONNET_CALL)
+    if len(selected) > max_affordable:
+        print(f"Budget left: ${budget_left:.2f} → can generate {max_affordable} of {len(selected)} pairs")
+        print(f"Trimming to {max_affordable} pairs to stay under budget")
+        selected = selected[:max_affordable]
+
+    estimated_cost = len(selected) * COST_SONNET_CALL
     print(f"Selected {len(selected)} responses for DPO pair generation")
-    print(f"Using {len(BAD_STRATEGIES)} bad-response strategies\n")
+    print(f"Using {len(BAD_STRATEGIES)} bad-response strategies")
+    print(f"Estimated step cost: ~${estimated_cost:.2f}\n")
 
     client = anthropic.AsyncAnthropic(api_key=API_KEY)
     semaphore = asyncio.Semaphore(MAX_CONCURRENT)
 
     # Generate bad responses for each selected good response
     pairs = []
+    estimated_spend = 0.0
     start_time = time.time()
 
     for i, good_response in enumerate(selected):
@@ -192,6 +222,8 @@ async def main():
             semaphore,
         )
 
+        estimated_spend += COST_SONNET_CALL
+
         if bad_text:
             pair = {
                 "problem": good_response["problem"],
@@ -207,15 +239,24 @@ async def main():
         if (i + 1) % 50 == 0 or (i + 1) == len(selected):
             elapsed = time.time() - start_time
             rate = (i + 1) / elapsed if elapsed > 0 else 0
-            print(f"  [{i+1}/{len(selected)}] {len(pairs)} pairs generated ({rate:.1f}/s)")
+            print(f"  [{i+1}/{len(selected)}] {len(pairs)} pairs generated (~${estimated_spend:.2f} spent, {rate:.1f}/s)")
+
+        # Hard stop if approaching pipeline budget
+        if estimated_spend >= budget_left * 0.95:
+            print(f"\n  BUDGET LIMIT REACHED (~${estimated_spend:.2f} of ${budget_left:.2f} remaining). Stopping.")
+            break
 
     # Write output
     with open(OUTPUT_PATH, "w") as f:
         for pair in pairs:
             f.write(json.dumps(pair, ensure_ascii=False) + "\n")
 
+    record_spend(STEP_NAME, estimated_spend)
+
     print(f"\nDone! {len(pairs)} DPO pairs written to {OUTPUT_PATH}")
+    print(f"Step spend: ~${estimated_spend:.2f}")
     print(f"Time: {(time.time() - start_time) / 60:.1f} minutes")
+    print_budget_status()
 
     # Strategy distribution
     strat_counts: dict[str, int] = {}

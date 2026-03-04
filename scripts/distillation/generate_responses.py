@@ -4,14 +4,14 @@ For each expanded prompt, generate a take from each of the 20 base lenses
 using Claude Sonnet as the teacher model. Uses the exact system prompts
 from backend/app/lenses/definitions.py.
 
+Shares a $100 pipeline budget with steps 1.4 and 1.5 via cost_tracker.
+
 Usage:
     source backend/.venv/bin/activate
     python scripts/distillation/generate_responses.py
 
 Input:  data/expanded_prompts.jsonl
 Output: data/teacher_responses.jsonl
-
-Estimated cost: 800 prompts x 20 lenses = 16,000 API calls ≈ $80-160
 """
 
 from __future__ import annotations
@@ -27,9 +27,17 @@ import anthropic
 
 # Add backend to path so we can import lens definitions directly
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(PROJECT_ROOT / "backend"))
 
 from app.lenses.definitions import LENSES, FORMAT_INSTRUCTION
+from scripts.distillation.cost_tracker import (
+    COST_SONNET_CALL,
+    load_tracker,
+    print_budget_status,
+    record_spend,
+    step_budget,
+)
 
 # Load API key from backend .env
 _env_path = PROJECT_ROOT / "backend" / ".env"
@@ -53,18 +61,14 @@ PROGRESS_PATH = DATA_DIR / ".generate_responses_progress.json"
 TEACHER_MODEL = "claude-sonnet-4-20250514"
 MAX_TOKENS = 400
 
-# Concurrency: stay within Anthropic output token rate limit (8K tokens/min)
-# Each response ~300 tokens output, so ~26 responses/min max
-# 2 concurrent requests keeps us well under the limit
-MAX_CONCURRENT = 2
+# Concurrency: Tier 2 allows 90K output tokens/min for Sonnet
+# Each response ~300 tokens output → ~300 responses/min theoretical max
+# 10 concurrent requests is a safe practical limit
+MAX_CONCURRENT = 10
 RETRY_MAX = 3
 RETRY_DELAY = 5.0
 
-# Cost cap: stop generating once estimated spend reaches this amount
-# Sonnet pricing: ~$3/M input + ~$15/M output tokens
-# Each call: ~500 input tokens ($0.0015) + ~300 output tokens ($0.0045) ≈ $0.006/call
-COST_PER_CALL_ESTIMATE = 0.006
-COST_CAP_USD = 100.0
+STEP_NAME = "generate_responses"
 
 
 def _parse_take(text: str) -> dict:
@@ -167,20 +171,28 @@ async def main():
     completed = load_progress()
     remaining = [p for p in prompts if p["problem"] not in completed]
 
-    max_calls = int(COST_CAP_USD / COST_PER_CALL_ESTIMATE)
+    # Shared pipeline budget — this step's allocation
+    tracker = load_tracker()
+    print_budget_status(tracker)
+    budget_left = step_budget(STEP_NAME, tracker)
+    if budget_left <= 0:
+        print(f"Budget for {STEP_NAME} exhausted. No calls will be made.")
+        return
+
+    max_calls = int(budget_left / COST_SONNET_CALL)
     max_prompts = max_calls // 20  # 20 lenses per prompt
     if len(remaining) > max_prompts:
         print(f"Loaded {len(prompts)} prompts, {len(completed)} already done, {len(remaining)} remaining")
-        print(f"Cost cap: ${COST_CAP_USD:.0f} → max {max_prompts} prompts ({max_calls} API calls)")
-        print(f"Trimming from {len(remaining)} to {max_prompts} prompts to stay under cap")
+        print(f"Budget left: ${budget_left:.2f} → max {max_prompts} prompts ({max_calls} API calls)")
+        print(f"Trimming from {len(remaining)} to {max_prompts} prompts to stay under budget")
         remaining = remaining[:max_prompts]
     else:
         print(f"Loaded {len(prompts)} prompts, {len(completed)} already done, {len(remaining)} remaining")
 
     total_calls = len(remaining) * 20
-    estimated_cost = total_calls * COST_PER_CALL_ESTIMATE
+    estimated_cost = total_calls * COST_SONNET_CALL
     print(f"Generating {len(remaining)} x 20 lenses = {total_calls} API calls")
-    print(f"Estimated cost: ~${estimated_cost:.0f} (cap: ${COST_CAP_USD:.0f})")
+    print(f"Estimated step cost: ~${estimated_cost:.2f} (pipeline budget left: ${budget_left:.2f})")
     print(f"Concurrency: {MAX_CONCURRENT} simultaneous requests\n")
 
     if not remaining:
@@ -205,7 +217,7 @@ async def main():
                 f.write(json.dumps(r, ensure_ascii=False) + "\n")
 
             total_generated += len(results)
-            estimated_spend += len(results) * COST_PER_CALL_ESTIMATE
+            estimated_spend += len(results) * COST_SONNET_CALL
             completed.add(prompt["problem"])
 
             # Progress reporting every 10 prompts
@@ -222,18 +234,21 @@ async def main():
                 save_progress(completed)
                 f.flush()
 
-            # Hard stop if approaching cost cap
-            if estimated_spend >= COST_CAP_USD * 0.95:
-                print(f"\n  COST CAP REACHED (~${estimated_spend:.0f} of ${COST_CAP_USD:.0f}). Stopping.")
+            # Hard stop if approaching pipeline budget
+            if estimated_spend >= budget_left * 0.95:
+                print(f"\n  BUDGET LIMIT REACHED (~${estimated_spend:.2f} of ${budget_left:.2f} remaining). Stopping.")
                 save_progress(completed)
                 f.flush()
                 break
 
     save_progress(completed)
+    record_spend(STEP_NAME, estimated_spend)
 
     print(f"\nDone! {total_generated} teacher responses written to {OUTPUT_PATH}")
+    print(f"Step spend: ~${estimated_spend:.2f}")
     print(f"Total time: {(time.time() - start_time) / 60:.1f} minutes")
-    print(f"\nTo clean up progress file: rm {PROGRESS_PATH}")
+    print_budget_status()
+    print(f"To clean up progress file: rm {PROGRESS_PATH}")
 
 
 if __name__ == "__main__":
