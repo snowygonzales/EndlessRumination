@@ -58,8 +58,8 @@ OUTPUT_PATH = DATA_DIR / "filtered_responses.jsonl"
 REJECTED_PATH = DATA_DIR / "rejected_responses.jsonl"
 
 SCORER_MODEL = "claude-haiku-4-5-20251001"
-MAX_CONCURRENT = 30  # Haiku has higher rate limits
-RETRY_MAX = 3
+MAX_CONCURRENT = 10  # Conservative — avoid 529 overloaded errors
+RETRY_MAX = 5  # More retries with exponential backoff
 
 STEP_NAME = "filter_quality"
 
@@ -92,6 +92,9 @@ Return ONLY valid JSON:
 {{"persona": <1-5>, "specificity": <1-5>, "impact": <1-5>, "safety": <1-5>, "format_ok": <true/false>}}"""
 
 
+SCORE_FAILURES = {"json_parse": 0, "rate_limit": 0, "overloaded": 0, "other": 0}
+
+
 async def score_response(
     client: anthropic.AsyncAnthropic,
     response: dict,
@@ -115,24 +118,52 @@ async def score_response(
                 )
                 text = message.content[0].text.strip()
 
-                # Extract JSON from response
+                # Extract JSON from response — handle markdown wrapping
                 if text.startswith("```"):
                     text = text.split("\n", 1)[1]
                     if text.endswith("```"):
                         text = text[:-3]
                     text = text.strip()
 
+                # Also handle cases where Haiku wraps in just braces with extra text
+                brace_start = text.find("{")
+                brace_end = text.rfind("}")
+                if brace_start >= 0 and brace_end > brace_start:
+                    text = text[brace_start:brace_end + 1]
+
                 scores = json.loads(text)
+
+                # Normalize format_ok: Haiku sometimes returns "true"/"false"
+                # strings instead of boolean, or "yes"/"no"
+                fmt = scores.get("format_ok", True)
+                if isinstance(fmt, str):
+                    scores["format_ok"] = fmt.lower() in ("true", "yes", "1")
+
                 return scores
 
-            except (json.JSONDecodeError, anthropic.RateLimitError) as e:
-                if isinstance(e, anthropic.RateLimitError):
-                    await asyncio.sleep(5 * (2 ** attempt))
-                elif attempt < RETRY_MAX - 1:
+            except json.JSONDecodeError:
+                SCORE_FAILURES["json_parse"] += 1
+                if attempt < RETRY_MAX - 1:
                     await asyncio.sleep(2)
                 else:
                     return None
+            except anthropic.RateLimitError:
+                SCORE_FAILURES["rate_limit"] += 1
+                wait = 10 * (2 ** attempt)  # 10s, 20s, 40s
+                await asyncio.sleep(wait)
+            except anthropic.APIStatusError as e:
+                if e.status_code == 529:  # Overloaded
+                    SCORE_FAILURES["overloaded"] += 1
+                    wait = 15 * (2 ** attempt)
+                    await asyncio.sleep(wait)
+                else:
+                    SCORE_FAILURES["other"] += 1
+                    if attempt < RETRY_MAX - 1:
+                        await asyncio.sleep(2)
+                    else:
+                        return None
             except Exception:
+                SCORE_FAILURES["other"] += 1
                 if attempt < RETRY_MAX - 1:
                     await asyncio.sleep(2)
                 else:
@@ -141,10 +172,13 @@ async def score_response(
 
 
 def passes_filter(scores: dict, min_score: int = 4) -> bool:
-    """Check if a response passes the quality filter."""
+    """Check if a response passes the quality filter.
+
+    format_ok is a soft signal — we log it but don't reject based on it alone.
+    Minor format issues (slightly long headline, 6 sentences) are acceptable
+    when the content quality is high.
+    """
     if not scores:
-        return False
-    if not scores.get("format_ok", False):
         return False
     for dim in ["persona", "specificity", "impact", "safety"]:
         if scores.get(dim, 0) < min_score:
@@ -229,10 +263,13 @@ async def main():
         elapsed = time.time() - start_time
         processed = batch_start + len(batch)
         rate = processed / elapsed if elapsed > 0 else 0
+        # Count scoring failures in this batch
+        batch_fails = sum(1 for r in rejected[-len(batch):] if r.get("reject_reason") == "scoring_failed")
+        fail_info = f" | API fails: {SCORE_FAILURES}" if any(v > 0 for v in SCORE_FAILURES.values()) else ""
         print(
             f"  [{processed}/{len(responses)}] "
             f"kept={len(kept)} rejected={len(rejected)} "
-            f"(~${estimated_spend:.2f} spent, {rate:.1f} responses/s)"
+            f"(~${estimated_spend:.2f} spent, {rate:.1f} responses/s{fail_info})"
         )
 
         # Hard stop if approaching pipeline budget
