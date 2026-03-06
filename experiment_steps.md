@@ -462,36 +462,53 @@ python scripts/training/optimize_for_device.py --model 4b --prune-vocab
 
 ---
 
-## Step 5: Model Conversion to MLX (Mac, $0)
+## Step 5: Model Conversion to MLX (Mac, $0) ✅
 
 Convert optimized HuggingFace model to MLX 4-bit format for iOS deployment.
 
-### 5.1 — Install mlx-lm (if not already installed)
+### 5.1 — Install mlx-lm ✅
+Already installed in `.mlx-venv` (mlx-lm 0.30.8 from git).
+
+### 5.2 — Convert to MLX 4-bit format ✅
 ```bash
-pip install mlx-lm
+source .mlx-venv/bin/activate
+
+# ⚠️ mlx-lm 0.30+ CLI changed: use `python -m mlx_lm convert` (not `python -m mlx_lm.convert`)
+# and --hf-path / --mlx-path (not --model / -o)
+python -m mlx_lm convert \
+    --hf-path ./models/er-qwen35-4b-optimized \
+    --mlx-path ./models/er-qwen35-4b-mlx-4bit \
+    -q --q-bits 4 --q-group-size 64
 ```
 
-### 5.2 — Convert to MLX 4-bit format
-```bash
-# Convert optimized 4B model
-python -m mlx_lm.convert \
-    --model ./models/er-qwen35-4b-optimized \
-    --quantize \
-    --q-bits 4 \
-    --q-group-size 64 \
-    -o ./models/er-qwen35-4b-mlx-4bit
-```
+**Fixes required before conversion:**
+1. **`config.json` model_type:** `optimize_for_device.py` sets `model_type: "qwen3_5_text"` but mlx-lm only knows `"qwen3_5"`. Must change back to `"qwen3_5"` before converting.
+2. **`tokenizer.json` BPE merges:** Vocab pruning updated the vocab dict but left merge rules referencing pruned tokens. Must filter `model.merges` to only keep merges where both parts exist in the new vocab. (Removed 108K of 248K merge rules.)
 
-Expected output size:
-- 4B optimized 4-bit: **~2.0 GB**
+**Actual results (2026-03-06):**
+- **Output size: 2.1 GB** (target was ~2.0 GB)
+- Quantized at 4.503 bits per weight average
+- Conversion time: ~2 minutes on Mac Mini M1
 
-### 5.3 — Verify MLX inference on converted models
-```bash
-python -m mlx_lm.generate \
-    --model ./models/er-qwen35-4b-mlx-4bit \
-    --prompt "I'm worried about losing my job" \
-    --max-tokens 200
-```
+### 5.3 — Verify MLX inference ✅
+
+**Performance on Mac Mini M1:**
+
+| Metric | Result |
+|--------|--------|
+| Generation speed | **21.8 tok/s** |
+| Prompt processing | **72.5 tok/s** |
+| Peak memory | **2.59 GB** |
+| Time per take (~200 tokens) | **~12s** |
+
+- All 3 tested lenses (Stoic, Comedian, Grandma) produce coherent, persona-differentiated output
+- Quality consistent with PC eval — format compliance mixed but persona authenticity strong
+- Stop token handling: model generates past `<|im_end|>` if not stopped — iOS app must trim at first `<|im_end|>`
+- `enable_thinking=False` in `apply_chat_template()` still required
+- Benign warning about "incorrect regex pattern" from tokenizer — can be ignored
+
+**STEP 5 COMPLETE.** Model ready for iOS integration (step 6).
+
 Verify output quality matches the merged bf16 model (quantization should not noticeably degrade output).
 
 ### 5.4 — Upload to HuggingFace

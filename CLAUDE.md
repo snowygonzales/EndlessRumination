@@ -11,7 +11,7 @@ Psychology app with two independent native frontends (SwiftUI iOS + Jetpack Comp
 
 Pivoting from cloud Claude API to fully on-device inference using fine-tuned **Qwen 3.5 4B** via **Apple MLX**. Goal: privacy-first iOS app positioned for App Store featuring ("your thoughts never leave this device").
 
-**Status:** Steps 1-4.5 complete (dataset, MLX verify, SFT, DPO, merge, eval, optimize). **Next: Step 5 — MLX conversion on Mac.**
+**Status:** Steps 1-5 complete (dataset, MLX verify, SFT, DPO, merge, eval, optimize, MLX convert). **Next: Step 6 — iOS app refactor.**
 
 Key tech choices:
 - **Model:** Qwen 3.5 4B only (2B dropped — insufficient comprehension) — Gated DeltaNet architecture
