@@ -200,6 +200,10 @@ def generate_take(
     tok,
     max_tokens: int = 300,
     temperature: float = 0.7,
+    top_k: int = 50,
+    top_p: float = 0.95,
+    repetition_penalty: float = 1.0,
+    min_p: float = 0.0,
 ) -> tuple[str, float]:
     """Generate a single take. Returns (text, elapsed_seconds)."""
     messages = [
@@ -214,16 +218,23 @@ def generate_take(
     )
     inputs = tok(input_text, return_tensors="pt").to(mdl.device)
 
+    gen_kwargs = dict(
+        **inputs,
+        max_new_tokens=max_tokens,
+        temperature=temperature,
+        top_k=top_k,
+        top_p=top_p,
+        do_sample=True,
+        pad_token_id=tok.eos_token_id,
+    )
+    if repetition_penalty > 1.0:
+        gen_kwargs["repetition_penalty"] = repetition_penalty
+    if min_p > 0.0:
+        gen_kwargs["min_p"] = min_p
+
     t0 = time.time()
     with torch.no_grad():
-        outputs = mdl.generate(
-            **inputs,
-            max_new_tokens=max_tokens,
-            temperature=temperature,
-            top_p=0.9,
-            do_sample=True,
-            pad_token_id=tok.eos_token_id,
-        )
+        outputs = mdl.generate(**gen_kwargs)
     elapsed = time.time() - t0
 
     # Decode only the new tokens
@@ -339,7 +350,7 @@ import gradio as gr
 model_label = "stock" if args.stock else Path(args.model_path).name
 
 
-def interactive_generate(lens_choice, problem, temperature, max_tokens):
+def interactive_generate(lens_choice, problem, temperature, max_tokens, top_k, top_p, rep_penalty, min_p):
     """Generate a take from the selected lens."""
     if not problem.strip():
         return "Please enter a problem/worry.", "", ""
@@ -347,6 +358,8 @@ def interactive_generate(lens_choice, problem, temperature, max_tokens):
     text, elapsed = generate_take(
         problem, lens["prompt"], model, tokenizer,
         max_tokens=int(max_tokens), temperature=temperature,
+        top_k=int(top_k), top_p=top_p,
+        repetition_penalty=rep_penalty, min_p=min_p,
     )
     check = check_format(text)
     badge = format_badge(check)
@@ -354,7 +367,7 @@ def interactive_generate(lens_choice, problem, temperature, max_tokens):
     return text, meta, text  # third output goes to hidden state
 
 
-def compare_generate(lens_choice, problem, temperature, max_tokens):
+def compare_generate(lens_choice, problem, temperature, max_tokens, top_k, top_p, rep_penalty, min_p):
     """Generate side-by-side: fine-tuned vs stock."""
     if not problem.strip():
         return "Enter a problem.", "", "Enter a problem.", ""
@@ -364,6 +377,8 @@ def compare_generate(lens_choice, problem, temperature, max_tokens):
     ft_text, ft_time = generate_take(
         problem, lens["prompt"], model, tokenizer,
         max_tokens=max_tok, temperature=temperature,
+        top_k=int(top_k), top_p=top_p,
+        repetition_penalty=rep_penalty, min_p=min_p,
     )
     ft_check = format_badge(check_format(ft_text))
     ft_meta = f"⏱ {ft_time:.1f}s | {ft_check}"
@@ -372,9 +387,9 @@ def compare_generate(lens_choice, problem, temperature, max_tokens):
         st_text, st_time = generate_take(
             problem, lens["prompt"], stock_model, stock_tokenizer,
             max_tokens=max_tok, temperature=temperature,
+            top_k=int(top_k), top_p=top_p,
+            repetition_penalty=rep_penalty, min_p=min_p,
         )
-        st_check = format_badge(check_format(st_text))
-        st_meta = f"⏱ {st_time:.1f}s | {st_check}"
     else:
         st_text = "(Stock model not loaded — run with --compare)"
         st_meta = ""
@@ -493,6 +508,11 @@ with gr.Blocks(
                     )
                     temp_slider = gr.Slider(0.1, 1.5, value=args.temperature, step=0.05, label="Temperature")
                     tokens_slider = gr.Slider(100, 500, value=args.max_tokens, step=50, label="Max Tokens")
+                    with gr.Accordion("Sampling Controls", open=False):
+                        top_k_slider = gr.Slider(0, 100, value=50, step=5, label="Top-K (0=off, 50=recommended)")
+                        top_p_slider = gr.Slider(0.5, 1.0, value=0.95, step=0.05, label="Top-P (0.95=recommended)")
+                        rep_penalty = gr.Slider(1.0, 1.3, value=1.0, step=0.05, label="Repetition Penalty (1.0=off)")
+                        min_p_slider = gr.Slider(0.0, 0.2, value=0.0, step=0.01, label="Min-P (0=off, use instead of top-p)")
                 with gr.Column(scale=3):
                     problem_input = gr.Textbox(
                         label="What's on your mind?",
@@ -513,7 +533,7 @@ with gr.Blocks(
 
             gen_btn.click(
                 interactive_generate,
-                inputs=[lens_dd, problem_input, temp_slider, tokens_slider],
+                inputs=[lens_dd, problem_input, temp_slider, tokens_slider, top_k_slider, top_p_slider, rep_penalty, min_p_slider],
                 outputs=[output_text, meta_text, hidden_take],
             )
             rate_btn.click(
@@ -529,6 +549,11 @@ with gr.Blocks(
                     cmp_lens = gr.Dropdown(choices=LENS_CHOICES, value=LENS_CHOICES[0], label="Lens")
                     cmp_temp = gr.Slider(0.1, 1.5, value=args.temperature, step=0.05, label="Temperature")
                     cmp_tokens = gr.Slider(100, 500, value=args.max_tokens, step=50, label="Max Tokens")
+                with gr.Row():
+                    cmp_top_k = gr.Slider(0, 100, value=50, step=5, label="Top-K")
+                    cmp_top_p = gr.Slider(0.5, 1.0, value=0.95, step=0.05, label="Top-P")
+                    cmp_rep = gr.Slider(1.0, 1.3, value=1.0, step=0.05, label="Rep Penalty")
+                    cmp_min_p = gr.Slider(0.0, 0.2, value=0.0, step=0.01, label="Min-P")
                 cmp_problem = gr.Textbox(label="Problem", lines=3)
                 cmp_btn = gr.Button("Compare", variant="primary")
                 with gr.Row():
@@ -542,7 +567,7 @@ with gr.Blocks(
                         st_meta = gr.Textbox(label="", interactive=False, max_lines=1)
                 cmp_btn.click(
                     compare_generate,
-                    inputs=[cmp_lens, cmp_problem, cmp_temp, cmp_tokens],
+                    inputs=[cmp_lens, cmp_problem, cmp_temp, cmp_tokens, cmp_top_k, cmp_top_p, cmp_rep, cmp_min_p],
                     outputs=[ft_output, ft_meta, st_output, st_meta],
                 )
 

@@ -12,10 +12,10 @@ Full step-by-step guide for fine-tuning **Qwen 3.5** models to replace cloud Cla
 **Budget:** $100 shared across steps 1.3 + 1.4 + 1.5 (tracked via `data/.pipeline_cost_tracker.json`)
 
 **Key Technology Choices:**
-- **Model:** Qwen 3.5 (2B for ≤6GB devices, 4B for 8GB+ devices) — released March 2, 2026
+- **Model:** Qwen 3.5 4B only — released March 2, 2026 (2B evaluated and dropped due to insufficient comprehension)
 - **Training:** Unsloth with **bf16 LoRA** (NOT QLoRA — Unsloth warns against 4-bit for Qwen 3.5's Gated DeltaNet architecture)
 - **Inference:** Apple MLX via mlx-swift — ~40% faster than llama.cpp on Apple Silicon, native Swift API, WWDC 2025 featured
-- **Format:** MLX safetensors (4-bit quantized) — ~1.5 GB for 2B, ~2.5 GB for 4B
+- **Format:** MLX safetensors (4-bit quantized) — ~2.0 GB optimized (vision stripped, vocab pruned)
 
 ---
 
@@ -143,10 +143,10 @@ pip install "mlx-lm @ git+https://github.com/ml-explore/mlx-lm.git"
 Create a minimal test Xcode project with mlx-swift:
 - Add SPM dependency: `https://github.com/ml-explore/mlx-swift.git`
 - Add SPM dependency: `https://github.com/ml-explore/mlx-swift-lm.git`
-- Load `mlx-community/Qwen3.5-2B-4bit` on device
+- Load fine-tuned 4B model on device
 - **Important:** mlx-swift does NOT work in simulator — physical device only
 - Measure: first token latency, tok/s, total memory footprint
-- Target: first token <3s, 20+ tok/s generation, <2 GB memory for 2B
+- Target: first token <3s, 20+ tok/s generation, <3 GB memory for optimized 4B
 - Status: **Pending** — deferred until after fine-tuning (step 2.1 confirms MLX works, device test with fine-tuned model in step 7)
 
 ### 2.3 — Baseline stock model quality
@@ -427,15 +427,44 @@ python scripts/evaluation/eval_ui.py --model-path models/er-qwen35-4b-dpo --adap
 - **Problem specificity:** takes reference the user's actual problem, not generic advice
 - **Compare to:** `reference/sample_takes.json` (cloud Sonnet quality bar)
 
-**ITERATE** steps 3-4 if quality insufficient (expect 1-2 rounds)
+**Evaluation Results:**
+- **4B with top-k=40:** Acceptable quality — format compliance good, persona somewhat generic vs Sonnet but coherent and problem-specific
+- **2B:** DROPPED — fundamental comprehension failures (misattributes subject/object in multi-clause sentences). SFT eval loss 0.89 vs 4B's 0.73 reflects insufficient capacity for this use case.
+
+**Decision: 4B only.** Minimum viable device is iPhone 15 Pro (8 GB), with optimization targeting iPhone 15 base (6 GB).
 
 ---
 
-## Step 5: Model Conversion to MLX (Mac or PC, $0)
+## Step 4.5: Optimize Model for 6GB Devices ✅
 
-Convert merged HuggingFace models to MLX 4-bit format for iOS deployment.
+Strip unnecessary components to minimize on-device memory footprint.
 
-> This can run on either Mac or PC. Mac is simpler (MLX is Apple-native). On PC, `mlx-lm` works in regular Python but won't use GPU acceleration for conversion.
+```bash
+source ~/er-train-venv/bin/activate
+cd ~/er-training
+
+# Strip vision encoder (667 MB) + prune non-English vocab (554 MB)
+python scripts/training/optimize_for_device.py --model 4b --prune-vocab
+```
+
+**Optimizations applied:**
+1. **Vision encoder stripped:** Unsloth's merge included a full 24-layer vision encoder from Qwen 3.5 VL (shared model_type). Removed 333M params (667 MB in bf16).
+2. **Vocabulary pruned:** 248,320 → 140,032 tokens (56.4%). Removed CJK, Cyrillic, Arabic, Thai, Korean, Devanagari tokens. Kept all ASCII/Latin tokens + tokens found in training data.
+
+**Results:**
+- Original merged: 9.32 GB (bf16)
+- Optimized: 8.10 GB (bf16), saving 1.22 GB (13.1%)
+- **4-bit estimate: ~2.0 GB** (vs ~2.3 GB without optimization)
+- Runtime memory estimate: ~2.4 GB total (weights + recurrent state + activations)
+- Target: fits in 6GB device with ~3 GB available after iOS overhead
+
+**Recommended generation params (4B):** temperature=0.7, top_k=40, top_p=0.95
+
+---
+
+## Step 5: Model Conversion to MLX (Mac, $0)
+
+Convert optimized HuggingFace model to MLX 4-bit format for iOS deployment.
 
 ### 5.1 — Install mlx-lm (if not already installed)
 ```bash
@@ -444,26 +473,17 @@ pip install mlx-lm
 
 ### 5.2 — Convert to MLX 4-bit format
 ```bash
-# Convert 4B model
+# Convert optimized 4B model
 python -m mlx_lm.convert \
-    --model ./models/er-qwen35-4b-merged \
+    --model ./models/er-qwen35-4b-optimized \
     --quantize \
     --q-bits 4 \
     --q-group-size 64 \
     -o ./models/er-qwen35-4b-mlx-4bit
-
-# Convert 2B model
-python -m mlx_lm.convert \
-    --model ./models/er-qwen35-2b-merged \
-    --quantize \
-    --q-bits 4 \
-    --q-group-size 64 \
-    -o ./models/er-qwen35-2b-mlx-4bit
 ```
 
-Expected output sizes:
-- 2B 4-bit: **~1.5 GB**
-- 4B 4-bit: **~2.5 GB**
+Expected output size:
+- 4B optimized 4-bit: **~2.0 GB**
 
 ### 5.3 — Verify MLX inference on converted models
 ```bash
@@ -482,11 +502,6 @@ python -m mlx_lm.convert \
     --quantize --q-bits 4 --q-group-size 64 \
     --upload-repo endlessrumination/er-qwen35-4b-mlx-4bit
 
-python -m mlx_lm.convert \
-    --model ./models/er-qwen35-2b-merged \
-    --quantize --q-bits 4 --q-group-size 64 \
-    --upload-repo endlessrumination/er-qwen35-2b-mlx-4bit
-
 # Option B: Manual upload with huggingface-cli
 huggingface-cli upload endlessrumination/er-qwen35-4b-mlx-4bit ./models/er-qwen35-4b-mlx-4bit
 ```
@@ -502,7 +517,6 @@ git clone https://github.com/ggml-org/llama.cpp && cd llama.cpp && make
 # Convert merged model to GGUF
 python convert_hf_to_gguf.py ./models/er-qwen35-4b-merged --outtype f16
 ./llama-quantize er-qwen35-4b-f16.gguf er-qwen35-4b-Q4_K_M.gguf Q4_K_M
-# Repeat for 2B
 ```
 
 ---
@@ -515,7 +529,7 @@ python convert_hf_to_gguf.py ./models/er-qwen35-4b-merged --outtype f16
 
 | File | Purpose |
 |------|---------|
-| `Services/DeviceCapability.swift` | RAM detection → ModelTier enum (2B for ≤6GB, 4B for 8GB+) |
+| `Services/DeviceCapability.swift` | RAM check + memory budget validation for optimized 4B model |
 | `Services/InferenceEngine.swift` | MLX wrapper via mlx-swift-lm, `generate(systemPrompt:userMessage:) async -> String` |
 | `Services/LocalTakeGenerator.swift` | Replaces `APIClient.generateBatch()`, sequential inference per lens |
 | `Models/LensPrompts.swift` | All 40 system prompts ported to Swift (**already created**) |
@@ -532,11 +546,9 @@ import MLXLMCommon
     private var modelContainer: ModelContainer?
     var isLoaded = false
 
-    func loadModel(tier: ModelTier) async throws {
+    func loadModel() async throws {
         let config = ModelConfiguration(
-            id: tier == .large
-                ? "endlessrumination/er-qwen35-4b-mlx-4bit"
-                : "endlessrumination/er-qwen35-2b-mlx-4bit"
+            id: "endlessrumination/er-qwen35-4b-mlx-4bit"
         )
         modelContainer = try await LLMModelFactory.shared.loadContainer(
             configuration: config
@@ -600,7 +612,7 @@ This roughly doubles available memory on 8GB devices (~2-3 GB → ~4-6 GB). Esse
 3. "Meet your advisors" — persona preview with sample takes
 4. "Your thoughts stay private" — privacy explainer (key marketing message)
 5. "You're all set!" — appears when download completes
-- Subtle progress bar at bottom. 2B downloads ~1.5 GB, 4B downloads ~2.5 GB.
+- Subtle progress bar at bottom. Model download ~2.0 GB.
 - mlx-swift's `LLMModelFactory.loadContainer` provides `Progress` callback natively.
 
 ### Files to delete
@@ -623,11 +635,11 @@ mlx-swift does NOT work in the iOS Simulator (requires Metal on physical device)
 
 ### 7.1 — Device testing matrix
 
-| Device | RAM | Model Tier | Key Test |
-|--------|-----|------------|----------|
-| iPhone 14 Pro (A16, 6GB) | 6 GB | 2B (~1.5 GB) | Memory pressure, no OOM |
-| iPhone 15 Pro (A17, 8GB) | 8 GB | 4B (~2.5 GB) | Speed, quality |
-| iPhone 16 Pro (A18, 8GB) | 8 GB | 4B (~2.5 GB) | Best-case performance |
+| Device | RAM | Model | Key Test |
+|--------|-----|-------|----------|
+| iPhone 15 (A16, 6GB) | 6 GB | 4B optimized (~2.0 GB) | Memory pressure, no OOM on 6GB |
+| iPhone 15 Pro (A17, 8GB) | 8 GB | 4B optimized (~2.0 GB) | Speed, quality, comfortable headroom |
+| iPhone 16 Pro (A18, 8GB) | 8 GB | 4B optimized (~2.0 GB) | Best-case performance |
 
 For each device:
 - First-launch: onboarding + download + first generation end-to-end
@@ -638,19 +650,19 @@ For each device:
 
 **Performance targets:**
 
-| Metric | 2B on A16 | 4B on A17 Pro |
-|--------|-----------|---------------|
-| Tok/s generation | 30-50 | 20-35 |
-| Time per take (~200 tokens) | 4-7s | 6-10s |
-| Total 20 takes | 1.5-2.5 min | 2-3.5 min |
-| Peak memory | <2.5 GB | <4 GB |
+| Metric | 4B on A16 (6GB) | 4B on A17 Pro (8GB) |
+|--------|------------------|---------------------|
+| Tok/s generation | 15-25 | 20-35 |
+| Time per take (~200 tokens) | 8-13s | 6-10s |
+| Total 20 takes | 2.5-4 min | 2-3.5 min |
+| Peak memory | <3 GB | <3.5 GB |
 
 ### 7.2 — Quality review
 - Generate takes for 20 diverse problems across all 20 lenses
 - Read through ALL output: format compliance, persona authenticity, specificity
 - Compare subjectively to the cloud Sonnet experience
 - Identify failure modes: repetition, generic responses, tone drift
-- **2B vs 4B quality comparison** — if 2B is notably worse, consider making 4B-only a Pro feature
+- **6GB vs 8GB device comparison** — verify optimized 4B runs without OOM on 6GB devices
 
 ### 7.3 — Edge cases
 - What happens if model download is interrupted? (Resume support)
@@ -678,7 +690,7 @@ xcodebuild -exportArchive -archivePath /tmp/ER-iOS.xcarchive \
 1. App launches, downloads model during onboarding (masked by interactive screens)
 2. Offline inference: airplane mode produces takes with no network
 3. All 20 base lenses produce recognizable, problem-specific takes
-4. Correct model tier selected per device (2B on ≤6GB, 4B on 8GB+)
+4. Optimized 4B model runs on all target devices (6GB+)
 5. IAP still works (Pro subscription, voice packs via StoreKit 2)
 6. Ads display for free tier
 7. Safety blocklist rejects harmful input
@@ -695,12 +707,12 @@ xcodebuild -exportArchive -archivePath /tmp/ER-iOS.xcarchive \
 | PyTorch nightly instability on Blackwell | Medium | Pin a working nightly version once found; NVIDIA has published Unsloth+5090 benchmarks confirming it works |
 | Flash Attention incompatible with SM_120 | None | Unsloth uses Triton-based kernels; FA is not needed |
 | WSL2 phantom OOM errors | Medium | Start conservative (batch 1, seq 1024), scale up; native Linux dual-boot as escape hatch |
-| RTX 5090 power shutdown at high batch sizes | **High** | 2B with batch-size 16 drew 270W and crashed the PC. Keep batch-size ≤8 for 2B, ≤4 for 4B. Monitor with `nvidia-smi` |
-| Fine-tuned Qwen 3.5 → MLX conversion untested | Low | Individual steps all confirmed; first end-to-end may hit minor config issues |
+| RTX 5090 power shutdown at high batch sizes | **Resolved** | 2B with batch-size 16 drew 270W and crashed the PC. Keep batch-size ≤8 for 2B, ≤4 for 4B. Monitor with `nvidia-smi` |
+| Fine-tuned Qwen 3.5 → MLX conversion untested | Low | Individual steps all confirmed; first end-to-end may hit minor config issues. Optimized model has vision encoder stripped + vocab pruned — verify MLX converter handles this |
 | Qwen 3.5 QLoRA quality degradation | None | Using bf16 LoRA as Unsloth recommends |
 | Unsloth DPOTrainer crashes on Qwen 3.5 | **Resolved** | `qwen3_5` model_type is in vision model mapping → DPOTrainer uses vision codepath → `KeyError: 'images'`. Fix: use vanilla transformers + PEFT + TRL for DPO (skip Unsloth). See step 4 notes |
-| 4B model memory pressure on 8GB iPhones | Medium | `increased-memory-limit` entitlement; 2B fallback tier; monitor with Instruments |
-| 2B quality notably worse than 4B | Medium | DPO training helps; could make model tier a Pro feature |
+| 4B model on 6GB iPhones | Medium | Optimized model (~2.0 GB at 4-bit) + `increased-memory-limit` entitlement; monitor with Instruments. If OOM, try 3-bit quantization (~1.7 GB) |
+| 2B model quality | **Resolved — dropped** | 2B has fundamental comprehension failures (misattributes subject/object). Going 4B-only for all devices |
 | mlx-swift no simulator support | Low | Mock inference engine for simulator builds; physical device for inference testing |
 | iOS 18 minimum (was iOS 17) | Low | iPhone 12+ supports iOS 18; older devices already marginal for LLM inference |
 | App Store rejection | Low | AI consent dialog retained; on-device = simpler privacy story; Apple's own MLX = good optics |
@@ -726,7 +738,8 @@ scripts/distillation/
 scripts/training/
 ├── sft_train.py             # Steps 3.2-3.3 — bf16 LoRA SFT
 ├── dpo_train.py             # Steps 4.1-4.2 — DPO alignment
-└── merge_and_export.py      # Step 4.3 — merge LoRA + export to HF format
+├── merge_and_export.py      # Step 4.3 — merge LoRA + export to HF format
+└── optimize_for_device.py   # Step 4.5 — strip vision encoder + prune vocab
 ```
 
 ### Evaluation scripts (PC/WSL2)
@@ -754,15 +767,14 @@ data/
 ### Models (gitignored, generated on PC)
 ```
 models/
-├── er-qwen35-4b-sft/       # LoRA adapter after SFT (step 3.2)
-├── er-qwen35-2b-sft/       # LoRA adapter after SFT (step 3.3)
-├── er-qwen35-4b-dpo/       # LoRA adapter after DPO (step 4.1)
-├── er-qwen35-2b-dpo/       # LoRA adapter after DPO (step 4.2)
-├── er-qwen35-4b-merged/    # Full merged model, HF format (step 4.3)
-├── er-qwen35-2b-merged/    # Full merged model, HF format (step 4.3)
-├── er-qwen35-4b-mlx-4bit/  # MLX 4-bit quantized (step 5.2)
-└── er-qwen35-2b-mlx-4bit/  # MLX 4-bit quantized (step 5.2)
+├── er-qwen35-4b-sft/       # LoRA adapter after SFT (step 3.2) — cleaned up
+├── er-qwen35-4b-dpo/       # LoRA adapter after DPO (step 4.1) — cleaned up
+├── er-qwen35-4b-merged/    # Full merged model, HF format (step 4.3) — 8.7 GB
+├── er-qwen35-4b-optimized/ # Vision stripped + vocab pruned (step 4.5) — 8.1 GB
+└── er-qwen35-4b-mlx-4bit/  # MLX 4-bit quantized (step 5.2) — ~2.0 GB
 ```
+
+> **2B models dropped.** Qwen 3.5 2B had fundamental comprehension failures — misattributing subject/object in multi-clause user input. SFT eval loss 0.89 (vs 4B's 0.73) reflects insufficient capacity for this use case. All 2B artifacts deleted.
 
 ### iOS files (new/modified for on-device)
 ```
@@ -775,8 +787,7 @@ ios/EndlessRumination/
 
 ### HuggingFace repos (created in step 5.4)
 ```
-endlessrumination/er-qwen35-4b-mlx-4bit  # 4B model for 8GB+ devices (~2.5 GB)
-endlessrumination/er-qwen35-2b-mlx-4bit  # 2B model for ≤6GB devices (~1.5 GB)
+endlessrumination/er-qwen35-4b-mlx-4bit  # Optimized 4B model for all devices (~2.0 GB)
 ```
 
 ---
@@ -785,7 +796,7 @@ endlessrumination/er-qwen35-2b-mlx-4bit  # 2B model for ≤6GB devices (~1.5 GB)
 
 | Component | Old (Cloud) | New (On-Device) |
 |-----------|------------|-----------------|
-| Model | Claude Sonnet/Haiku | Qwen 3.5 (2B + 4B), fine-tuned |
+| Model | Claude Sonnet/Haiku | Qwen 3.5 4B, fine-tuned + optimized |
 | Training | N/A | Unsloth, bf16 LoRA, RTX 5090/WSL2 |
 | Inference | Anthropic API (SSE) | Apple MLX via mlx-swift |
 | Model format | N/A | MLX safetensors (4-bit) |

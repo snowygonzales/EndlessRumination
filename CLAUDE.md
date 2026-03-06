@@ -9,15 +9,17 @@ Psychology app with two independent native frontends (SwiftUI iOS + Jetpack Comp
 **Branch:** `experiment/on-device-inference` (cloud API preserved on `master`, tagged `v0.4.0-cloud-api`)
 **Full guide:** `experiment_steps.md` — **read this FIRST** for any experiment-related work.
 
-Pivoting from cloud Claude API to fully on-device inference using fine-tuned **Qwen 3.5** (2B + 4B) via **Apple MLX**. Goal: privacy-first iOS app positioned for App Store featuring ("your thoughts never leave this device").
+Pivoting from cloud Claude API to fully on-device inference using fine-tuned **Qwen 3.5 4B** via **Apple MLX**. Goal: privacy-first iOS app positioned for App Store featuring ("your thoughts never leave this device").
 
-**Status:** Steps 1-4 complete (dataset, MLX verify, SFT, DPO, merge). **Next: Step 4.4 — quality eval via Gradio UI, then Step 5 — MLX conversion (both on Mac).**
+**Status:** Steps 1-4.5 complete (dataset, MLX verify, SFT, DPO, merge, eval, optimize). **Next: Step 5 — MLX conversion on Mac.**
 
 Key tech choices:
-- **Model:** Qwen 3.5 (2B for ≤6GB devices, 4B for 8GB+) — Gated DeltaNet architecture
+- **Model:** Qwen 3.5 4B only (2B dropped — insufficient comprehension) — Gated DeltaNet architecture
 - **Training:** Unsloth with **bf16 LoRA** (NOT QLoRA — breaks Gated DeltaNet)
 - **Inference:** Apple MLX via mlx-swift (~40% faster than llama.cpp, WWDC 2025 featured)
 - **iOS minimum:** iOS 18 (up from 17, required by mlx-swift Metal kernels)
+- **Optimized model:** Vision encoder stripped + vocab pruned (248K→140K tokens), 4-bit ≈ 2.0 GB, targets 6GB devices
+- **Generation params:** temperature=0.7, top_k=40, top_p=0.95
 - **Budget:** $93.55 of $100 spent on dataset generation (Sonnet + Haiku API calls)
 
 ## Key Commands
@@ -42,10 +44,10 @@ Key tech choices:
 ### On-Device Experiment Commands (PC/WSL2)
 - Activate venv: `source ~/er-train-venv/bin/activate && cd ~/er-training`
 - SFT 4B (verified): `python scripts/training/sft_train.py --model 4b --batch-size 4 --grad-accum 4`
-- SFT 2B (verified): `python scripts/training/sft_train.py --model 2b --batch-size 8 --grad-accum 2`
-- DPO training: `python scripts/training/dpo_train.py --model 4b` (or `--model 2b`)
-- Merge LoRA + export: `python scripts/training/merge_and_export.py --model 4b` (or `--model 2b`)
-- MLX convert (Mac): `python -m mlx_lm.convert --model ./models/er-qwen35-4b-merged --quantize --q-bits 4 --q-group-size 64 -o ./models/er-qwen35-4b-mlx-4bit`
+- DPO training: `python scripts/training/dpo_train.py --model 4b`
+- Merge LoRA + export: `python scripts/training/merge_and_export.py --model 4b`
+- Optimize for device: `python scripts/training/optimize_for_device.py --model 4b --prune-vocab`
+- MLX convert (Mac): `python -m mlx_lm.convert --model ./models/er-qwen35-4b-optimized --quantize --q-bits 4 --q-group-size 64 -o ./models/er-qwen35-4b-mlx-4bit`
 - Eval UI: `pip install gradio && python scripts/evaluation/eval_ui.py --model-path models/er-qwen35-4b-dpo --adapter` (accessible at `http://<PC_IP>:7860`)
 - ⚠️ MUST run from native Linux FS (`~/er-training/`), NOT `/mnt/c/` — severe I/O bottleneck otherwise
 
@@ -173,6 +175,7 @@ EndlessRumination/
 - `scripts/training/sft_train.py` — Steps 3.2-3.3: bf16 LoRA SFT via Unsloth
 - `scripts/training/dpo_train.py` — Steps 4.1-4.2: DPO alignment (vanilla PEFT + TRL, NOT Unsloth)
 - `scripts/training/merge_and_export.py` — Step 4.3: Merge LoRA + export to HF format
+- `scripts/training/optimize_for_device.py` — Step 4.5: Strip vision encoder + prune vocab for 6GB devices
 
 ### Evaluation Scripts (on-device experiment, PC or Mac)
 - `scripts/evaluation/eval_ui.py` — Step 4.4: Gradio web UI for human quality evaluation (all 40 lenses, batch mode, ratings)
