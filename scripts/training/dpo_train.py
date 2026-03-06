@@ -1,17 +1,18 @@
-"""Phase 2.3 — DPO training on top of SFT adapter.
+"""Step 4.1/4.2 — DPO training on top of SFT adapter.
 
 Direct Preference Optimization teaches the model what "good" looks like
 relative to "bad" — better than SFT alone for style/quality alignment.
 
-Run this on the RTX 5090 PC (32GB VRAM).
+Run this on the RTX 5090 PC (32GB VRAM) under WSL2.
 
 Usage:
+    source ~/er-train-venv/bin/activate
     python scripts/training/dpo_train.py --model 4b
-    python scripts/training/dpo_train.py --model 1.7b
+    python scripts/training/dpo_train.py --model 2b
 
 Input:  data/dpo_train.jsonl, data/dpo_val.jsonl,
-        models/er-qwen3-{size}-sft/ (SFT adapter)
-Output: models/er-qwen3-{size}-dpo/
+        models/er-qwen35-{size}-sft/ (SFT adapter)
+Output: models/er-qwen35-{size}-dpo/
 """
 
 from __future__ import annotations
@@ -21,7 +22,7 @@ import json
 from pathlib import Path
 
 parser = argparse.ArgumentParser(description="DPO training for Endless Rumination")
-parser.add_argument("--model", choices=["4b", "1.7b"], default="4b")
+parser.add_argument("--model", choices=["4b", "2b"], default="4b")
 parser.add_argument("--beta", type=float, default=0.1, help="DPO beta parameter")
 parser.add_argument("--lr", type=float, default=5e-5, help="Learning rate")
 parser.add_argument("--epochs", type=int, default=1, help="DPO epochs")
@@ -30,14 +31,8 @@ parser.add_argument("--grad-accum", type=int, default=4, help="Gradient accumula
 
 args = parser.parse_args()
 
-MODEL_MAP = {
-    "4b": "Qwen/Qwen3-4B-Instruct",
-    "1.7b": "Qwen/Qwen3-1.7B-Instruct",
-}
-
-BASE_MODEL = MODEL_MAP[args.model]
-SFT_ADAPTER = Path(f"models/er-qwen3-{args.model}-sft")
-OUTPUT_DIR = Path(f"models/er-qwen3-{args.model}-dpo")
+SFT_ADAPTER = Path(f"models/er-qwen35-{args.model}-sft")
+OUTPUT_DIR = Path(f"models/er-qwen35-{args.model}-dpo")
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 DATA_DIR = Path("data")
@@ -49,31 +44,66 @@ if not SFT_ADAPTER.exists():
     exit(1)
 
 print(f"=" * 60)
-print(f"Endless Rumination — DPO Training")
+print(f"Endless Rumination — DPO Training (bf16 LoRA)")
 print(f"=" * 60)
-print(f"Base model:   {BASE_MODEL}")
 print(f"SFT adapter:  {SFT_ADAPTER}")
 print(f"DPO beta:     {args.beta}")
 print(f"LR:           {args.lr}")
 print(f"Epochs:       {args.epochs}")
+print(f"Batch size:   {args.batch_size} x {args.grad_accum} = {args.batch_size * args.grad_accum} effective")
 print(f"Output:       {OUTPUT_DIR}")
 print(f"=" * 60)
 
 print("\nLoading libraries...")
 
-from unsloth import FastLanguageModel
+# NOTE: We intentionally skip Unsloth for DPO training. Unsloth's patched
+# DPOTrainer misidentifies Qwen 3.5 as a vision model (qwen3_5 shares
+# model_type with Qwen3.5-VL) and crashes with KeyError: 'images'.
+# Vanilla transformers + PEFT + TRL works correctly for DPO.
+# SFT was done with Unsloth (for speed), DPO is 1 epoch on small data so
+# the ~2x speed penalty is acceptable (~1hr vs ~30min).
+
+import torch
+
+# Prevent Unsloth from patching TRL trainers — we want vanilla DPO
+import sys
+_unsloth_modules = [k for k in sys.modules if 'unsloth' in k]
+_saved_unsloth = {k: sys.modules.pop(k) for k in _unsloth_modules}
+
+from transformers import AutoModelForCausalLM, AutoTokenizer
+from peft import PeftModel
 from datasets import load_dataset
 from trl import DPOTrainer, DPOConfig
 
-# Load model with SFT adapter
-print(f"\nLoading {BASE_MODEL} + SFT adapter...")
+# Restore unsloth modules (in case anything else needs them)
+sys.modules.update(_saved_unsloth)
 
-model, tokenizer = FastLanguageModel.from_pretrained(
-    model_name=str(SFT_ADAPTER),
-    max_seq_length=2048,
-    load_in_4bit=True,
-    dtype=None,
+# Load base model + SFT adapter via vanilla PEFT
+print(f"\nLoading SFT adapter from {SFT_ADAPTER} in bf16...")
+
+# Read adapter config to get base model name
+adapter_config = json.loads((SFT_ADAPTER / "adapter_config.json").read_text())
+base_model_name = adapter_config["base_model_name_or_path"]
+print(f"Base model: {base_model_name}")
+
+tokenizer = AutoTokenizer.from_pretrained(str(SFT_ADAPTER))
+
+model = AutoModelForCausalLM.from_pretrained(
+    base_model_name,
+    torch_dtype=torch.bfloat16,
+    device_map="auto",
+    attn_implementation="eager",  # Flash Attention doesn't work on Blackwell SM_120
 )
+
+# Load the SFT LoRA adapter
+model = PeftModel.from_pretrained(model, str(SFT_ADAPTER), is_trainable=True)
+print(f"Loaded SFT adapter, trainable params: {sum(p.numel() for p in model.parameters() if p.requires_grad):,}")
+
+# TRL's DPOTrainer expects a 'warnings_issued' dict on the model (for tracking
+# whether certain warnings have been shown). PeftModel doesn't have it, so
+# attribute lookup falls through to the base model which also doesn't have it.
+if not hasattr(model, "warnings_issued"):
+    model.warnings_issued = {}
 
 # Load DPO dataset
 print(f"\nLoading DPO data...")
@@ -111,7 +141,7 @@ training_args = DPOConfig(
 
 trainer = DPOTrainer(
     model=model,
-    tokenizer=tokenizer,
+    processing_class=tokenizer,
     train_dataset=dataset["train"],
     eval_dataset=dataset["validation"],
     args=training_args,
@@ -125,8 +155,8 @@ model.save_pretrained(str(OUTPUT_DIR))
 tokenizer.save_pretrained(str(OUTPUT_DIR))
 
 config = {
-    "base_model": BASE_MODEL,
     "sft_adapter": str(SFT_ADAPTER),
+    "quantization": "bf16 (no QLoRA)",
     "beta": args.beta,
     "lr": args.lr,
     "epochs": args.epochs,

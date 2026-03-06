@@ -170,33 +170,43 @@ Test with llama.cpp Metal backend or Kuzco SPM wrapper on device. ~40% slower th
 
 Transfer training data to the PC, then run under WSL2.
 
-### 3.0 — Environment setup (one-time)
+### 3.0 — Environment setup (one-time) ✅
 
 **⚠️ RTX 5090 (Blackwell, SM_120) requires special setup:**
 
 ```bash
 # In WSL2 on the RTX 5090 PC
 
-# 1. Install PyTorch nightly with CUDA 12.8 (stable PyTorch does NOT support Blackwell)
+# 1. Create venv (separate from any Windows Python)
+python3 -m venv ~/er-train-venv
+source ~/er-train-venv/bin/activate
+
+# 2. Install PyTorch nightly with CUDA 12.8 (stable PyTorch does NOT support Blackwell)
 pip install torch --extra-index-url https://download.pytorch.org/whl/cu128
 
-# 2. Install Unsloth (handles transformers dependency internally)
+# 3. Install Unsloth (handles transformers dependency internally)
 pip install unsloth
 
-# 3. Install remaining deps
+# 4. Install remaining deps
 pip install datasets trl accelerate bitsandbytes
 
-# 4. Verify CUDA is visible and correct arch
+# 5. Verify CUDA is visible and correct arch
 python -c "import torch; print(torch.cuda.get_device_name(0)); print(f'CUDA arch: {torch.cuda.get_device_capability()}')"
 # Expected: NVIDIA GeForce RTX 5090, CUDA arch: (12, 0)
 ```
+
+**Actual installed versions (2026-03-05):**
+- PyTorch 2.10.0+cu128
+- Triton 3.6.0
+- Unsloth 2026.3.3
+- datasets, trl, accelerate, bitsandbytes (latest)
 
 **Important notes:**
 - **Flash Attention 2/3 do NOT work on Blackwell SM_120.** This is fine — Unsloth uses its own Triton-based attention kernels that bypass Flash Attention entirely.
 - **WSL2 memory quirk:** OOM errors can occur even with free VRAM. Start with conservative settings and scale up. Monitor with `nvidia-smi` in a separate terminal.
 - **Triton >= 3.3.1** required (supports SM_120). Should install automatically with Unsloth.
 
-### 3.1 — Transfer training data to PC
+### 3.1 — Transfer training data to PC ✅
 Copy these files from Mac to PC (via scp, shared drive, etc.):
 ```
 data/sft_train.jsonl
@@ -208,16 +218,34 @@ scripts/training/dpo_train.py
 scripts/training/merge_and_export.py
 ```
 
-### 3.2 — SFT on Qwen3.5-4B
+**⚠️ CRITICAL: Train from native Linux filesystem, NOT `/mnt/c/`.**
+Running from the Windows mount (`/mnt/c/Users/.../EndlessRumination`) causes severe I/O bottleneck — 100% CPU, ~3% GPU utilization, training speed drops ~10x. Copy data to a native WSL2 path:
 ```bash
-python scripts/training/sft_train.py --model 4b
+mkdir -p ~/er-training/{data,scripts/training,models}
+cp /mnt/c/.../EndlessRumination/data/{sft,dpo}_{train,val}.jsonl ~/er-training/data/
+cp /mnt/c/.../EndlessRumination/scripts/training/*.py ~/er-training/scripts/training/
+cd ~/er-training
+```
+
+### 3.2 — SFT on Qwen3.5-4B ✅
+```bash
+# ⚠️ Default batch size (2) severely underutilizes RTX 5090 — use batch 4:
+python scripts/training/sft_train.py --model 4b --batch-size 4 --grad-accum 4
 ```
 - **bf16 LoRA** (NOT QLoRA): rank 16, alpha 32, target all linear layers (`q_proj`, `k_proj`, `v_proj`, `o_proj`, `gate_proj`, `up_proj`, `down_proj`)
 - LR 2e-4, cosine schedule, 3 epochs, max_seq 2048, effective batch 16
 - `use_gradient_checkpointing = "unsloth"` (30% VRAM savings)
-- **Estimated VRAM: ~10 GB** (leaves 22 GB headroom on 32 GB card)
-- Estimated time: ~2-4 hours on RTX 5090
 - Output: `models/er-qwen35-4b-sft/` (LoRA adapter)
+
+**Actual results (2026-03-05):**
+- **VRAM: ~21 GB** (with batch-size 4)
+- **Power: ~230W**, temperature ~59°C
+- **Wall time: ~4 hours** (1,494 steps total, 3 epochs)
+- **Adapter size: 82 MB**
+- Epoch 1 eval_loss: 0.7573
+- **Epoch 2 eval_loss: 0.7313** (best — loaded by `load_best_model_at_end`)
+- Epoch 3 eval_loss: 0.7687 (slight overfit)
+- Best checkpoint: step 996 (epoch 2)
 
 ```python
 # Key training config (in sft_train.py):
@@ -242,14 +270,31 @@ model = FastLanguageModel.get_peft_model(
 )
 ```
 
-### 3.3 — SFT on Qwen3.5-2B
+### 3.3 — SFT on Qwen3.5-2B ✅
 ```bash
-python scripts/training/sft_train.py --model 2b
+# ⚠️ 2B model needs larger batch to saturate GPU. batch-size 8 is stable.
+# DO NOT use batch-size 16 — caused full PC shutdown at 270W!
+python scripts/training/sft_train.py --model 2b --batch-size 8 --grad-accum 2
 ```
 - Same bf16 LoRA config, 5 epochs for smaller model
-- **Estimated VRAM: ~5 GB**
-- Estimated time: ~1-2 hours
 - Output: `models/er-qwen35-2b-sft/` (LoRA adapter)
+
+**Actual results (2026-03-06):**
+- **VRAM: ~17 GB** (with batch-size 8)
+- **Power: ~210-225W**, temperature ~58°C
+- **Wall time: ~6 hours** (2,490 steps total, 5 epochs)
+- Epoch 1 eval_loss: 0.9393
+- **Epoch 2 eval_loss: 0.8904** (best — loaded by `load_best_model_at_end`)
+- Epoch 3 eval_loss: 0.9037 (slight overfit)
+- Epoch 4 eval_loss: 0.9664 (overfitting)
+- Epoch 5 eval_loss: 1.0365 (clear overfit)
+- Best checkpoint: step 996 (epoch 2)
+- Same pattern as 4B — **epoch 2 is the sweet spot**
+
+**⚠️ Batch size warning:**
+- `--batch-size 4`: GPU underutilized (~50W, 5% GPU)
+- `--batch-size 8`: Good (~220W, stable) ← **use this**
+- `--batch-size 16`: **DANGEROUS** — 270W, caused full PC shutdown/crash
 
 **WSL2 troubleshooting — if OOM despite free VRAM:**
 ```bash
@@ -263,39 +308,126 @@ python scripts/training/sft_train.py --model 2b
 
 ## Step 4: DPO Alignment + Export (PC/WSL2, $0)
 
-### 4.1 — DPO on Qwen3.5-4B
+> **⚠️ CRITICAL BUG: Unsloth cannot be used for DPO on Qwen 3.5.**
+>
+> Qwen 3.5 registers `model_type: "qwen3_5"` which appears in transformers'
+> `MODEL_FOR_IMAGE_TEXT_TO_TEXT_MAPPING_NAMES` (shared with Qwen3.5-VL vision variant).
+> Unsloth's patched `DPOTrainer` checks this mapping to decide between `tokenize_row`
+> (text path) vs `process_row` (vision path). For text-only Qwen 3.5, the vision path
+> crashes with `KeyError: 'images'` because there are no image inputs.
+>
+> **Workaround:** `dpo_train.py` uses **vanilla transformers + PEFT + TRL** instead of
+> Unsloth. The SFT adapter (saved by Unsloth) is loaded via standard `PeftModel.from_pretrained()`.
+> This is ~2x slower than Unsloth but DPO is 1 epoch on small data (~1 hour), so acceptable.
+>
+> Additional fixes needed for vanilla TRL:
+> - Use `processing_class=tokenizer` (not `tokenizer=tokenizer` — deprecated in TRL 0.14+)
+> - Set `model.warnings_issued = {}` (PeftModel doesn't have this attribute, TRL expects it)
+> - Use `attn_implementation="eager"` (Flash Attention incompatible with Blackwell SM_120)
+> - Temporarily remove `unsloth` from `sys.modules` before importing `trl` to prevent
+>   Unsloth's import hooks from patching `DPOTrainer`
+
+### 4.1 — DPO on Qwen3.5-4B ✅
 ```bash
-python scripts/training/dpo_train.py --model 4b
+python scripts/training/dpo_train.py --model 4b --batch-size 2 --grad-accum 4
 ```
-- Loads SFT adapter as starting point
-- bf16 LoRA, Beta 0.1, LR 5e-5, 1 epoch
-- **Estimated VRAM: ~15-20 GB** (DPO needs chosen + rejected = ~1.5-2x SFT)
+- Loads SFT adapter via vanilla PEFT (NOT Unsloth — see bug above)
+- bf16, Beta 0.1, LR 5e-5, 1 epoch, effective batch 8
+- **VRAM: ~22 GB** (DPO needs chosen + rejected forward passes)
+- **Power: ~218W**, temperature ~58°C
+- **Wall time: ~50 min** (214 steps, 1 epoch)
 - Output: `models/er-qwen35-4b-dpo/` (LoRA adapter)
+- **Eval loss: 0.0002**, accuracy: 100%, reward margin: 19.0
+- Status: **Done** (2026-03-06)
 
-### 4.2 — DPO on Qwen3.5-2B
-```bash
-python scripts/training/dpo_train.py --model 2b
+```python
+# Key DPO approach (in dpo_train.py):
+# 1. Prevent Unsloth from patching TRL
+import sys
+_unsloth_modules = [k for k in sys.modules if 'unsloth' in k]
+_saved_unsloth = {k: sys.modules.pop(k) for k in _unsloth_modules}
+
+# 2. Load model with vanilla transformers + PEFT
+from transformers import AutoModelForCausalLM
+from peft import PeftModel
+
+model = AutoModelForCausalLM.from_pretrained(
+    base_model_name,
+    torch_dtype=torch.bfloat16,
+    device_map="auto",
+    attn_implementation="eager",  # No Flash Attention on Blackwell
+)
+model = PeftModel.from_pretrained(model, str(SFT_ADAPTER), is_trainable=True)
+model.warnings_issued = {}  # TRL expects this attribute
+
+# 3. Train with vanilla TRL DPOTrainer
+from trl import DPOTrainer, DPOConfig
+trainer = DPOTrainer(
+    model=model,
+    processing_class=tokenizer,  # NOT tokenizer= (deprecated)
+    ...
+)
 ```
-- **Estimated VRAM: ~8 GB**
-- Output: `models/er-qwen35-2b-dpo/` (LoRA adapter)
 
-### 4.3 — Merge LoRA adapters and export to HuggingFace format
+### 4.2 — DPO on Qwen3.5-2B ✅
+```bash
+python scripts/training/dpo_train.py --model 2b --batch-size 2 --grad-accum 4
+```
+- Same vanilla PEFT + TRL approach
+- **VRAM: ~15 GB**
+- **Power: ~200W**, temperature ~57°C
+- **Wall time: ~90 min** (214 steps, 1 epoch)
+- Output: `models/er-qwen35-2b-dpo/` (LoRA adapter)
+- **Eval loss: 0.0004**, accuracy: 100%, reward margin: 18.3
+- Status: **Done** (2026-03-06)
+
+### 4.3 — Merge LoRA adapters and export to HuggingFace format ✅
 ```bash
 python scripts/training/merge_and_export.py --model 4b
 python scripts/training/merge_and_export.py --model 2b
 ```
 - Merges LoRA into base model via Unsloth's `save_pretrained_merged("merged_16bit")`
 - Exports as bf16 safetensors (HuggingFace format)
-- Output: `models/er-qwen35-4b-merged/`, `models/er-qwen35-2b-merged/`
+- Output: `models/er-qwen35-4b-merged/` (8.7 GB), `models/er-qwen35-2b-merged/` (4.3 GB)
+- Status: **Done** (2026-03-06)
 
 > **Known Unsloth quirk:** `save_pretrained_merged` may re-download base model weights into a `.cache/` folder inside the output directory instead of reusing the HF cache. This is a disk space annoyance (~8 GB for 4B), not a correctness issue. Delete the `.cache/` folder after export if disk is tight.
 
-### 4.4 — Quality evaluation
-- Run 50 held-out problems × 20 lenses through both fine-tuned models
-- Compare to stock baseline + `reference/sample_takes.json`
-- Human review of 20+ takes across all personas
-- **Target:** >90% format compliance, recognizable persona voices, problem-specific content
-- **ITERATE** steps 3-4 if quality insufficient (expect 1-2 rounds)
+> **Post-merge cleanup:** Intermediate artifacts (SFT adapters, DPO adapters, all checkpoints) were deleted after successful merge. Only the two merged models remain on the PC. HF cache (~14 GB) retained in case retraining is needed.
+
+### 4.4 — Quality evaluation (Gradio UI)
+
+**Tool:** `scripts/evaluation/eval_ui.py` — Gradio web UI accessible from any device on LAN.
+
+```bash
+# Install Gradio (one-time)
+pip install gradio
+
+# With DPO adapter (before merge):
+python scripts/evaluation/eval_ui.py --model-path models/er-qwen35-4b-dpo --adapter
+
+# With merged model (after merge_and_export.py):
+python scripts/evaluation/eval_ui.py --model-path models/er-qwen35-4b-merged
+
+# Side-by-side fine-tuned vs stock:
+python scripts/evaluation/eval_ui.py --model-path models/er-qwen35-4b-dpo --adapter --compare
+```
+
+**Features:**
+- **Interactive tab:** Pick any of all 40 lenses, type a worry, generate + read the take
+- **Side-by-side tab:** Fine-tuned vs stock model output for direct comparison (requires `--compare`)
+- **Batch tab:** Auto-run 10 held-out prompts × selected lenses, get format compliance stats
+- **Ratings tab:** 1-5 human ratings saved to `data/eval_ratings.jsonl`
+- Format compliance auto-check (headline length, blank line, body length, markdown/label detection)
+- Accessible at `http://<PC_IP>:7860` from any device on LAN
+
+**Evaluation criteria:**
+- **Format compliance:** >90% of takes follow headline + blank line + body format
+- **Persona authenticity:** each lens sounds distinctly like its character
+- **Problem specificity:** takes reference the user's actual problem, not generic advice
+- **Compare to:** `reference/sample_takes.json` (cloud Sonnet quality bar)
+
+**ITERATE** steps 3-4 if quality insufficient (expect 1-2 rounds)
 
 ---
 
@@ -563,8 +695,10 @@ xcodebuild -exportArchive -archivePath /tmp/ER-iOS.xcarchive \
 | PyTorch nightly instability on Blackwell | Medium | Pin a working nightly version once found; NVIDIA has published Unsloth+5090 benchmarks confirming it works |
 | Flash Attention incompatible with SM_120 | None | Unsloth uses Triton-based kernels; FA is not needed |
 | WSL2 phantom OOM errors | Medium | Start conservative (batch 1, seq 1024), scale up; native Linux dual-boot as escape hatch |
+| RTX 5090 power shutdown at high batch sizes | **High** | 2B with batch-size 16 drew 270W and crashed the PC. Keep batch-size ≤8 for 2B, ≤4 for 4B. Monitor with `nvidia-smi` |
 | Fine-tuned Qwen 3.5 → MLX conversion untested | Low | Individual steps all confirmed; first end-to-end may hit minor config issues |
 | Qwen 3.5 QLoRA quality degradation | None | Using bf16 LoRA as Unsloth recommends |
+| Unsloth DPOTrainer crashes on Qwen 3.5 | **Resolved** | `qwen3_5` model_type is in vision model mapping → DPOTrainer uses vision codepath → `KeyError: 'images'`. Fix: use vanilla transformers + PEFT + TRL for DPO (skip Unsloth). See step 4 notes |
 | 4B model memory pressure on 8GB iPhones | Medium | `increased-memory-limit` entitlement; 2B fallback tier; monitor with Instruments |
 | 2B quality notably worse than 4B | Medium | DPO training helps; could make model tier a Pro feature |
 | mlx-swift no simulator support | Low | Mock inference engine for simulator builds; physical device for inference testing |
@@ -593,6 +727,12 @@ scripts/training/
 ├── sft_train.py             # Steps 3.2-3.3 — bf16 LoRA SFT
 ├── dpo_train.py             # Steps 4.1-4.2 — DPO alignment
 └── merge_and_export.py      # Step 4.3 — merge LoRA + export to HF format
+```
+
+### Evaluation scripts (PC/WSL2)
+```
+scripts/evaluation/
+└── eval_ui.py               # Step 4.4 — Gradio web UI for human quality eval
 ```
 
 ### Generated data (gitignored)

@@ -11,7 +11,7 @@ Psychology app with two independent native frontends (SwiftUI iOS + Jetpack Comp
 
 Pivoting from cloud Claude API to fully on-device inference using fine-tuned **Qwen 3.5** (2B + 4B) via **Apple MLX**. Goal: privacy-first iOS app positioned for App Store featuring ("your thoughts never leave this device").
 
-**Status:** Steps 1-2 complete (dataset generation + MLX verification on Mac). **Next: Step 3 — SFT training on PC/WSL2 with RTX 5090.**
+**Status:** Steps 1-4 complete (dataset, MLX verify, SFT, DPO, merge). **Next: Step 4.4 — quality eval via Gradio UI, then Step 5 — MLX conversion (both on Mac).**
 
 Key tech choices:
 - **Model:** Qwen 3.5 (2B for ≤6GB devices, 4B for 8GB+) — Gated DeltaNet architecture
@@ -40,10 +40,14 @@ Key tech choices:
 - Budget check: `source backend/.venv/bin/activate && python -c "from scripts.distillation.cost_tracker import print_budget_status; print_budget_status()"`
 
 ### On-Device Experiment Commands (PC/WSL2)
-- SFT training: `python scripts/training/sft_train.py --model 4b` (or `--model 2b`)
+- Activate venv: `source ~/er-train-venv/bin/activate && cd ~/er-training`
+- SFT 4B (verified): `python scripts/training/sft_train.py --model 4b --batch-size 4 --grad-accum 4`
+- SFT 2B (verified): `python scripts/training/sft_train.py --model 2b --batch-size 8 --grad-accum 2`
 - DPO training: `python scripts/training/dpo_train.py --model 4b` (or `--model 2b`)
 - Merge LoRA + export: `python scripts/training/merge_and_export.py --model 4b` (or `--model 2b`)
 - MLX convert (Mac): `python -m mlx_lm.convert --model ./models/er-qwen35-4b-merged --quantize --q-bits 4 --q-group-size 64 -o ./models/er-qwen35-4b-mlx-4bit`
+- Eval UI: `pip install gradio && python scripts/evaluation/eval_ui.py --model-path models/er-qwen35-4b-dpo --adapter` (accessible at `http://<PC_IP>:7860`)
+- ⚠️ MUST run from native Linux FS (`~/er-training/`), NOT `/mnt/c/` — severe I/O bottleneck otherwise
 
 ## Architecture
 - Two native frontends → FastAPI gateway → Claude Sonnet/Haiku hybrid API
@@ -66,7 +70,8 @@ EndlessRumination/
 │   ├── create_asc_products.py  # IAP product creation (App Store Connect)
 │   ├── create_play_products.py # IAP product creation (Google Play)
 │   ├── distillation/           # Dataset generation pipeline (Mac, steps 1.1-1.6)
-│   └── training/               # Fine-tuning scripts (PC/WSL2, steps 3-4)
+│   ├── training/               # Fine-tuning scripts (PC/WSL2, steps 3-4)
+│   └── evaluation/             # Gradio eval UI (PC/WSL2, step 4.4)
 ├── data/                       # Generated training data (gitignored)
 ├── models/                     # Trained models + MLX exports (gitignored)
 ├── .mlx-venv/                  # Python 3.12 venv for MLX (gitignored)
@@ -165,9 +170,12 @@ EndlessRumination/
 - `scripts/distillation/format_training_data.py` — Step 1.6: ChatML format + 90/10 train/val split
 
 ### Training Scripts (on-device experiment, PC/WSL2)
-- `scripts/training/sft_train.py` — Steps 3.2-3.3: bf16 LoRA SFT via Unsloth (TO BE CREATED)
-- `scripts/training/dpo_train.py` — Steps 4.1-4.2: DPO alignment training (TO BE CREATED)
-- `scripts/training/merge_and_export.py` — Step 4.3: Merge LoRA + export to HF format (TO BE CREATED)
+- `scripts/training/sft_train.py` — Steps 3.2-3.3: bf16 LoRA SFT via Unsloth
+- `scripts/training/dpo_train.py` — Steps 4.1-4.2: DPO alignment (vanilla PEFT + TRL, NOT Unsloth)
+- `scripts/training/merge_and_export.py` — Step 4.3: Merge LoRA + export to HF format
+
+### Evaluation Scripts (on-device experiment, PC or Mac)
+- `scripts/evaluation/eval_ui.py` — Step 4.4: Gradio web UI for human quality evaluation (all 40 lenses, batch mode, ratings)
 
 ### Archived
 - `multiplatform/` — KMP Compose Multiplatform code (archived, reference only)
@@ -318,3 +326,4 @@ All code-level app store compliance items are implemented:
 - Don't install mlx-lm from PyPI (v0.29.1 lacks Qwen 3.5 support) — install from git
 - Don't use `temp=` kwarg with mlx-lm 0.30+ generate — use `sampler=make_sampler(temp=0.7)` from `mlx_lm.sample_utils`
 - Don't forget `enable_thinking=False` for Qwen 3.5 4B — otherwise it wastes ~100 tokens on chain-of-thought
+- Don't use Unsloth's DPOTrainer with Qwen 3.5 — it misidentifies qwen3_5 as a vision model and crashes with `KeyError: 'images'`. Use vanilla transformers + PEFT + TRL instead (see `dpo_train.py` and `experiment_steps.md` step 4)
