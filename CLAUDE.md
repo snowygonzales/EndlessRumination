@@ -11,7 +11,7 @@ Psychology app with two independent native frontends (SwiftUI iOS + Jetpack Comp
 
 Pivoting from cloud Claude API to fully on-device inference using fine-tuned **Qwen 3.5 4B** via **Apple MLX**. Goal: privacy-first iOS app positioned for App Store featuring ("your thoughts never leave this device").
 
-**Status:** Steps 1-5 complete (dataset, MLX verify, SFT, DPO, merge, eval, optimize, MLX convert). **Next: Step 6 — iOS app refactor.**
+**Status:** Steps 1-6 complete (dataset, MLX verify, SFT, DPO, merge, eval, optimize, MLX convert, iOS refactor). Build 19 fixes tokenizer crash (see below). **Next: Step 7 — device testing.**
 
 Key tech choices:
 - **Model:** Qwen 3.5 4B only (2B dropped — insufficient comprehension) — Gated DeltaNet architecture
@@ -28,6 +28,10 @@ Key tech choices:
 - Backend tests: `cd backend && pytest -v` (42 tests, all passing — SQLite + mocked Claude)
 - iOS project: `cd ios && xcodegen generate && open EndlessRumination.xcodeproj`
 - iOS tests: Cmd+U in Xcode (9 tests)
+- iOS debug build (generic): `cd ios && xcodegen generate && xcodebuild -scheme EndlessRumination -sdk iphoneos -destination generic/platform=iOS -configuration Debug -derivedDataPath /tmp/ER-Debug build`
+- iOS install on device: `xcrun devicectl device install app --device "9C36724C-82EF-534E-8B33-A51283B7EE70" /tmp/ER-Debug/Build/Products/Debug-iphoneos/EndlessRumination.app` (device must be unlocked)
+- iOS stream device logs: `log stream --predicate 'subsystem == "com.endlessrumination"' --style compact`
+- **Connected device**: iPhone 14 (iPhone14,7), CoreDevice ID: `9C36724C-82EF-534E-8B33-A51283B7EE70`, xcodebuild ID: `00008110-001C50110E88201E`
 - iOS TestFlight: `cd ios && xcodegen generate && xcodebuild -scheme EndlessRumination -sdk iphoneos -configuration Release -archivePath /tmp/ER-iOS.xcarchive archive && xcodebuild -exportArchive -archivePath /tmp/ER-iOS.xcarchive -exportOptionsPlist /tmp/ExportOptions.plist -exportPath /tmp/ER-iOS-Export -allowProvisioningUpdates -authenticationKeyPath ~/.appstoreconnect/private_keys/AuthKey_8YM9M9P47X.p8 -authenticationKeyID 8YM9M9P47X -authenticationKeyIssuerID e5829743-777b-4a9f-a968-30a8714fb272`
 - Android build: `cd android && JAVA_HOME=/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home ./gradlew :app:assembleDebug`
 - Android install: `~/Library/Android/sdk/platform-tools/adb install -r android/app/build/outputs/apk/debug/app-debug.apk`
@@ -124,10 +128,12 @@ EndlessRumination/
 - `ios/project.yml` — xcodegen project definition (SPM packages, build settings, Info.plist)
 - `ios/EndlessRumination/App/EndlessRuminationApp.swift` — App entry point, GAD init, ATT prompt, AI consent overlay
 - `ios/EndlessRumination/App/AppState.swift` — @Observable state management, AI consent persistence
-- `ios/EndlessRumination/Services/APIClient.swift` — URLSession HTTP + SSE streaming actor
+- `ios/EndlessRumination/Services/InferenceEngine.swift` — On-device MLX LLM inference (model download, loading, generation)
+- `ios/EndlessRumination/Services/LocalTakeGenerator.swift` — Sequential per-lens take generation using InferenceEngine
+- `ios/EndlessRumination/Services/DeviceCapability.swift` — RAM/memory checks for model compatibility
 - `ios/EndlessRumination/Services/SubscriptionManager.swift` — StoreKit 2 billing, receipt verification
-- `ios/EndlessRumination/Services/SafetyService.swift` — Client blocklist + server safety check
-- `ios/EndlessRumination/Models/` — Take, Lens, VoicePack, User
+- `ios/EndlessRumination/Services/SafetyService.swift` — Client blocklist safety check
+- `ios/EndlessRumination/Models/` — Take, Lens, VoicePack, LensPrompts
 - `ios/EndlessRumination/Views/` — All screens + AdBannerView, AIConsentView, OnboardingView
 - `ios/EndlessRumination/Theme/` — ERColors, ERTypography, ERAnimations
 
@@ -281,8 +287,8 @@ All 5 Android IAP products are created in Google Play Console:
 - 7 backend tests in `test_subscription.py` (mocked validators)
 
 ### Current Build Numbers
-- iOS: v0.4.0 build 14 (TestFlight)
-- Android: versionCode 6 (Internal Testing, DRAFT status)
+- iOS: v1.0.0 build 19 (TestFlight — on-device inference, tokenizer crash fix)
+- Android: versionCode 6 (Internal Testing, DRAFT status — still cloud API)
 
 ## Tech Stacks
 
@@ -316,8 +322,16 @@ All code-level app store compliance items are implemented:
 - **Terms of Service** — AI content disclaimer, subscription terms, liability limits (`docs/terms-of-service.md`)
 - **Remaining manual tasks** — See `docs/release_todo.md`
 
+## Deployment Rules
+- **NEVER push to TestFlight or App Store without explicit user command** — always ask and wait for confirmation before archiving/uploading
+- **NEVER push to Google Play without explicit user command** — same rule applies
+- Default to debug builds directly to connected device for testing
+- Use `os.log` with `Logger(subsystem: "com.endlessrumination", category: "<ClassName>")` for all debug logging
+- Stream device logs with: `log stream --predicate 'subsystem == "com.endlessrumination"' --style compact`
+
 ## What NOT to Do
 - Don't build a React/web app
+- Don't push to TestFlight / App Store / Google Play without explicit user permission
 - Don't use UIKit storyboards
 - Don't use KMP/Compose Multiplatform (archived, use native only)
 - Don't hardcode API keys — use environment variables
@@ -330,3 +344,5 @@ All code-level app store compliance items are implemented:
 - Don't use `temp=` kwarg with mlx-lm 0.30+ generate — use `sampler=make_sampler(temp=0.7)` from `mlx_lm.sample_utils`
 - Don't forget `enable_thinking=False` for Qwen 3.5 4B — otherwise it wastes ~100 tokens on chain-of-thought
 - Don't use Unsloth's DPOTrainer with Qwen 3.5 — it misidentifies qwen3_5 as a vision model and crashes with `KeyError: 'images'`. Use vanilla transformers + PEFT + TRL instead (see `dpo_train.py` and `experiment_steps.md` step 4)
+- Don't use non-ASCII characters (em dashes, curly quotes, accented names) in LensPrompts.swift — the pruned vocab is missing 128 high-byte characters (0x80-0xFF), causing swift-transformers to crash with `Fatal error: Unexpectedly found nil while unwrapping an Optional value` at `Tokenizer.swift:643`. Use `--` instead of `—`, `Soren` instead of `Søren`, etc.
+- Don't forget the vocab pruning limitation: the optimized model's BPE tokenizer cannot encode non-ASCII characters. User input should be sanitized to ASCII before tokenization. Future fix: re-run `optimize_for_device.py` with byte tokens forced to keep.

@@ -1,12 +1,21 @@
 import Foundation
 
+/// Client-side safety checks for harmful content.
+///
+/// On-device version: server-side check removed (no backend).
+/// Client blocklist expanded to compensate.
 enum SafetyService {
     private static let blocklist = [
+        // Suicidal ideation
         "kill myself", "kill me", "suicide", "suicidal",
         "hurt myself", "harm myself", "self-harm", "self harm",
-        "end it all", "end my life", "want to die",
+        "end it all", "end my life", "want to die", "wanna die",
         "cut myself", "cutting myself",
-        "weapon", "gun", "shoot",
+        // Violence
+        "weapon", "gun", "shoot", "stab", "murder",
+        // Additional safety terms
+        "overdose", "hang myself", "jump off", "slit my",
+        "take my life", "no reason to live", "better off dead",
     ]
 
     struct CrisisResource {
@@ -32,14 +41,9 @@ enum SafetyService {
     ]
 
     /// Client-side keyword check for instant rejection.
+    /// Returns `true` if the text is safe, `false` if it contains blocked terms.
     static func clientSideCheck(_ text: String) -> Bool {
         let lowered = text.lowercased()
         return !blocklist.contains(where: { lowered.contains($0) })
-    }
-
-    /// Server-side safety check via Claude classification.
-    static func serverSideCheck(_ text: String) async throws -> Bool {
-        let response = try await APIClient.shared.checkSafety(problem: text)
-        return response.safe
     }
 }

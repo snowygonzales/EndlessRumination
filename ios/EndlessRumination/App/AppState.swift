@@ -1,11 +1,22 @@
 import SwiftUI
 
+// MARK: - Subscription Tier (moved from User.swift — no backend auth needed)
+
+enum SubscriptionTier: String, Codable {
+    case free
+    case pro
+}
+
+// MARK: - App Screen
+
 enum AppScreen {
     case splash
     case input
     case loading
     case takes
 }
+
+// MARK: - App State
 
 @MainActor
 @Observable
@@ -22,15 +33,27 @@ final class AppState {
     var showOnboarding: Bool = false
     var showAIConsent: Bool = false
     var isGenerating: Bool = false
-    var authToken: String?
     var subscriptionTier: SubscriptionTier = .free
     var subscriptionManager: SubscriptionManager?
     var showPaywall: Bool = false
     var showShop: Bool = false
     var productsLoaded: Bool = false
 
+    /// On-device inference engine (shared across the app lifecycle).
+    var inferenceEngine: InferenceEngine = InferenceEngine()
+
     var hasConsentedAI: Bool {
         UserDefaults.standard.bool(forKey: Self.hasConsentedAIKey)
+    }
+
+    /// Whether the on-device model is downloaded and ready for inference.
+    var isModelReady: Bool {
+        inferenceEngine.isLoaded
+    }
+
+    /// Model download progress (0.0 to 1.0).
+    var modelDownloadProgress: Double {
+        inferenceEngine.downloadProgress
     }
 
     init() {
@@ -70,6 +93,7 @@ final class AppState {
         let packTakes = subscriptionManager?.ownedPackVoiceIndices.count ?? 0
         return baseTakes + packTakes
     }
+
     var isPro: Bool {
         #if DEBUG
         if subscriptionTier == .pro { return true }

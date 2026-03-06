@@ -119,9 +119,9 @@ struct ProblemInputView: View {
                 // Disclaimers
                 VStack(spacing: 4) {
                     HStack(spacing: 4) {
-                        Image(systemName: "shield.fill")
+                        Image(systemName: "lock.shield.fill")
                             .font(.system(size: 10))
-                        Text("All content analyzed for safety. Crisis resources provided when needed.")
+                        Text("Your thoughts never leave this device.")
                             .font(ERTypography.caption)
                     }
                     Text("Not a substitute for professional mental health care.")
@@ -161,7 +161,7 @@ struct ProblemInputView: View {
             return
         }
 
-        // Client-side safety check
+        // Client-side safety check (only safety layer in on-device mode)
         guard SafetyService.clientSideCheck(appState.problemText) else {
             appState.showSafetyOverlay = true
             return
@@ -172,38 +172,19 @@ struct ProblemInputView: View {
         isTextFieldFocused = false
 
         Task {
-            // Server-side safety check
-            do {
-                let safe = try await SafetyService.serverSideCheck(appState.problemText)
-                if !safe {
-                    appState.showSafetyOverlay = true
-                    isSubmitting = false
-                    return
-                }
-            } catch {
-                // If safety check fails, proceed (fail-open for UX, safety runs server-side too)
-            }
-
             appState.currentScreen = .loading
             appState.isGenerating = true
             isSubmitting = false
 
-            // Start streaming takes
-            let stream = await APIClient.shared.generateBatch(
+            // Generate takes locally via on-device inference
+            let generator = LocalTakeGenerator(engine: appState.inferenceEngine)
+            await generator.generateTakes(
                 problem: appState.problemText,
-                lensIndices: appState.lensIndicesForRequest,
-                ownedPackIDs: appState.ownedPackProductIDs
-            )
-            do {
-                for try await take in stream {
-                    appState.receiveTake(take)
-                }
-            } catch {
-                // If streaming fails but we have some takes, show them
-                if appState.takes.isEmpty {
-                    appState.currentScreen = .input
-                }
+                lensIndices: appState.lensIndicesForRequest
+            ) { take in
+                appState.receiveTake(take)
             }
+
             appState.isGenerating = false
         }
     }

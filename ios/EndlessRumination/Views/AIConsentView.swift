@@ -19,13 +19,13 @@ struct AIConsentView: View {
                     .padding(.bottom, 20)
 
                 // Title
-                Text("AI Data Processing")
+                Text("On-Device AI")
                     .font(ERTypography.serifHeadline())
                     .foregroundStyle(ERColors.primaryText)
                     .padding(.bottom, 12)
 
                 // Description
-                Text("Your problem text is sent to **Anthropic's Claude AI** to generate perspectives. Anthropic does not use your data to train their models.")
+                Text("This app uses an **on-device AI model running entirely on your iPhone** to generate perspectives. Your thoughts never leave this device.")
                     .font(.system(size: 14))
                     .foregroundStyle(ERColors.secondaryText)
                     .multilineTextAlignment(.center)

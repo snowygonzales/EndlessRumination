@@ -644,6 +644,31 @@ mlx-swift does NOT work in the iOS Simulator (requires Metal on physical device)
 - Use `#if targetEnvironment(simulator)` to swap implementations
 - All UI development and testing works on simulator; inference testing on physical device only
 
+### Step 6 status: ✅ Complete (builds 15-19)
+
+Builds 15-18 crashed on device at the generation step. Root cause: **vocab pruning breaks the byte-level BPE tokenizer**.
+
+**Root cause analysis:**
+The `optimize_for_device.py --prune-vocab` step prunes the vocabulary from 248K to 140K tokens. This removes 128 of the 256 fundamental byte-level characters (bytes 0x80-0xFF) that the BPE tokenizer needs as building blocks. These high bytes appear in the UTF-8 encoding of ANY non-ASCII character (em dashes `—`, curly quotes, accented letters like `ø`, etc.).
+
+When swift-transformers tries to tokenize text containing non-ASCII characters:
+1. The ByteLevel pre-tokenizer converts each byte to its byte-encoder character
+2. Bytes 0x80-0xFF map to Unicode chars (U+0122-U+0143 etc.) that were **pruned from vocab**
+3. BPE can't find these chars in vocab, falls back to `hexaEncode` producing `<0xXX>` tokens
+4. `<0xXX>` byte fallback tokens also don't exist in the pruned vocab
+5. `convertTokenToId()` returns nil, force-unwrap `!` at `Tokenizer.swift:643` crashes
+
+The system prompts in `LensPrompts.swift` contained 27 em dashes (`—`), `Niccolò`, and `Søren` — all multi-byte UTF-8 characters triggering the crash.
+
+**Fix applied (build 19):**
+- Replaced all non-ASCII characters in `LensPrompts.swift` with ASCII equivalents (`—` → `--`, `Søren` → `Soren`, `Niccolò` → `Niccolo`)
+- Also added 33 missing special tokens to `model.vocab` in `tokenizer.json` on HuggingFace (builds 18-19)
+
+**Known limitation:** The pruned tokenizer cannot encode non-ASCII user input. ASCII-only text works fine (all 128 low-byte characters are in vocab). Future fix options:
+1. Re-run `optimize_for_device.py` with byte tokens (0x00-0xFF) forced to keep list
+2. Add input sanitization in the iOS app (replace non-ASCII with ASCII approximations)
+3. Skip vocab pruning entirely (model grows from ~2.0 GB to ~2.5 GB at 4-bit)
+
 ---
 
 ## Step 7: Integration Testing (Mac + Physical Devices)

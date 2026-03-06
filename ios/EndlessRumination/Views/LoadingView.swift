@@ -25,6 +25,7 @@ struct LoadingView: View {
             Text(statusText)
                 .font(.system(size: 14))
                 .foregroundStyle(ERColors.secondaryText)
+                .multilineTextAlignment(.center)
                 .opacity(pulseOpacity)
                 .onAppear {
                     withAnimation(ERAnimations.pulse) {
@@ -32,7 +33,20 @@ struct LoadingView: View {
                     }
                 }
 
-            // Take count if streaming
+            // Model download progress (shown while model is downloading)
+            if appState.inferenceEngine.isDownloading {
+                VStack(spacing: 8) {
+                    ProgressView(value: appState.modelDownloadProgress)
+                        .tint(ERColors.accentWarm)
+                        .frame(width: 200)
+
+                    Text("Downloading AI model \u{2014} \(Int(appState.modelDownloadProgress * 100))%")
+                        .font(ERTypography.counter)
+                        .foregroundStyle(ERColors.dimText)
+                }
+            }
+
+            // Take count if generating
             if !appState.takes.isEmpty {
                 Text("\(appState.takes.count) / \(appState.totalTakes) perspectives ready")
                     .font(ERTypography.counter)
@@ -44,8 +58,14 @@ struct LoadingView: View {
     }
 
     private var statusText: String {
+        if appState.inferenceEngine.isDownloading {
+            return "Preparing your private AI..."
+        }
+        if !appState.inferenceEngine.isLoaded {
+            return "Loading AI model..."
+        }
         if appState.takes.isEmpty {
-            return "Generating perspectives..."
+            return "Generating perspectives...\nThis takes a moment on-device."
         }
         return "Almost ready..."
     }

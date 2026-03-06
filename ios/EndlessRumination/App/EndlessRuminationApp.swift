@@ -19,6 +19,9 @@ struct EndlessRuminationApp: App {
                 .task {
                     appState.subscriptionManager = subscriptionManager
                     await subscriptionManager.start()
+
+                    // Start model download immediately (runs in background)
+                    appState.inferenceEngine.startLoading()
                 }
                 .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
                     // Request ATT after a brief delay so the app is fully visible
