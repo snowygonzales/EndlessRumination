@@ -15,6 +15,7 @@ enum InferenceError: LocalizedError {
     case modelNotLoaded
     case generationFailed(String)
     case deviceNotSupported
+    case insufficientStorage(available: String, required: String)
 
     var errorDescription: String? {
         switch self {
@@ -24,6 +25,8 @@ enum InferenceError: LocalizedError {
             return "Failed to generate perspective: \(msg)"
         case .deviceNotSupported:
             return "This device doesn't have enough memory to run the AI model."
+        case .insufficientStorage(let available, let required):
+            return "Not enough storage space. \(available) available, \(required) required."
         }
     }
 }
@@ -78,6 +81,16 @@ final class InferenceEngine {
         }
     }
 
+    /// Reset error state and retry the download/load from scratch.
+    func retryLoading() {
+        log.info("retryLoading() called — resetting state")
+        loadTask = nil
+        loadError = nil
+        isDownloading = false
+        downloadProgress = 0
+        startLoading()
+    }
+
     /// Await model readiness. If loading hasn't started, starts it.
     func waitUntilReady() async throws {
         log.info("waitUntilReady() — isLoaded=\(self.isLoaded)")
@@ -124,6 +137,20 @@ final class InferenceEngine {
         guard DeviceCapability.canRunModel else {
             log.error("Device NOT supported — RAM too low. \(DeviceCapability.info)")
             throw InferenceError.deviceNotSupported
+        }
+
+        // Check available storage before downloading ~2.1 GB model
+        let requiredBytes: Int64 = 2_300_000_000 // 2.3 GB with headroom
+        if let freeBytes = try? URL(fileURLWithPath: NSHomeDirectory())
+            .resourceValues(forKeys: [.volumeAvailableCapacityForImportantUsageKey])
+            .volumeAvailableCapacityForImportantUsage {
+            let freeGB = Double(freeBytes) / 1_073_741_824
+            log.info("Storage check: \(String(format: "%.1f", freeGB)) GB available")
+            if freeBytes < requiredBytes {
+                let available = String(format: "%.1f GB", freeGB)
+                log.error("Insufficient storage: \(available) available, 2.1 GB required")
+                throw InferenceError.insufficientStorage(available: available, required: "2.1 GB")
+            }
         }
 
         isDownloading = true

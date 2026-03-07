@@ -101,19 +101,58 @@ struct TakeCardView: View {
                 .foregroundStyle(ERColors.dimText)
 
             VStack(spacing: 10) {
-                ForEach(SafetyService.crisisResources, id: \.name) { resource in
-                    HStack(spacing: 8) {
-                        Image(systemName: resource.action == "call" ? "phone.fill" : "message.fill")
-                            .font(.system(size: 12))
-                            .foregroundStyle(ERColors.accentCool)
-                        Text("\(resource.name): \(resource.value)")
-                            .font(.system(size: 12, weight: .medium))
-                            .foregroundStyle(ERColors.primaryText)
+                ForEach(Array(SafetyService.crisisResources.enumerated()), id: \.offset) { _, resource in
+                    Button {
+                        openCrisisResource(resource)
+                    } label: {
+                        HStack(spacing: 8) {
+                            Image(systemName: crisisResourceIcon(resource))
+                                .font(.system(size: 12))
+                                .foregroundStyle(ERColors.accentCool)
+                            if resource.action == "link" {
+                                Text(resource.name)
+                                    .font(.system(size: 12, weight: .medium))
+                                    .foregroundStyle(ERColors.accentCool)
+                            } else {
+                                Text("\(resource.name): \(resource.value)")
+                                    .font(.system(size: 12, weight: .medium))
+                                    .foregroundStyle(ERColors.primaryText)
+                            }
+                        }
                     }
                 }
             }
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 40)
+    }
+
+    private func openCrisisResource(_ resource: SafetyService.CrisisResource) {
+        let urlString: String
+        switch resource.action {
+        case "call":
+            urlString = "tel:\(resource.value)"
+        case "text":
+            let parts = resource.value.components(separatedBy: " to ")
+            let number = parts.count > 1 ? parts[1] : resource.value
+            let keyword = parts.count > 1 ? parts[0] : ""
+            urlString = "sms:\(number)&body=\(keyword)"
+        case "link":
+            urlString = resource.value
+        default:
+            return
+        }
+        if let url = URL(string: urlString) {
+            UIApplication.shared.open(url)
+        }
+    }
+
+    private func crisisResourceIcon(_ resource: SafetyService.CrisisResource) -> String {
+        switch resource.action {
+        case "call": return "phone.fill"
+        case "text": return "message.fill"
+        case "link": return "globe"
+        default: return "phone.fill"
+        }
     }
 }

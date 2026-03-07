@@ -81,24 +81,91 @@ enum SafetyService {
 
     struct CrisisResource {
         let name: String
+        /// "call", "text", or "link"
         let action: String
         let value: String
         let description: String
     }
 
-    static let crisisResources = [
-        CrisisResource(
-            name: "988 Suicide & Crisis Lifeline",
-            action: "call",
-            value: "988",
-            description: "Free, confidential, 24/7 support"
-        ),
-        CrisisResource(
-            name: "Crisis Text Line",
-            action: "text",
-            value: "HOME to 741741",
-            description: "Text-based crisis counseling"
-        ),
+    /// Locale-aware crisis resources.
+    /// Returns country-specific hotlines based on device region, plus an
+    /// international directory link as fallback for all other countries.
+    static var crisisResources: [CrisisResource] {
+        let countryCode = Locale.current.region?.identifier ?? "US"
+        var resources = countryHotlines[countryCode] ?? countryHotlines["US"]!
+
+        // Always append international directory link
+        resources.append(CrisisResource(
+            name: "Find a helpline in your country",
+            action: "link",
+            value: "https://findahelpline.com/countries/\(countryCode.lowercased())",
+            description: "175+ countries covered"
+        ))
+
+        return resources
+    }
+
+    // Top countries by App Store revenue with verified crisis numbers
+    private static let countryHotlines: [String: [CrisisResource]] = [
+        "US": [
+            CrisisResource(name: "988 Suicide & Crisis Lifeline", action: "call", value: "988", description: "Free, confidential, 24/7"),
+            CrisisResource(name: "Crisis Text Line", action: "text", value: "HOME to 741741", description: "Text-based crisis support"),
+        ],
+        "GB": [
+            CrisisResource(name: "Samaritans", action: "call", value: "116123", description: "Free, 24/7 emotional support"),
+            CrisisResource(name: "Shout", action: "text", value: "SHOUT to 85258", description: "Text-based crisis support"),
+        ],
+        "IE": [
+            CrisisResource(name: "Samaritans", action: "call", value: "116123", description: "Free, 24/7 emotional support"),
+        ],
+        "CA": [
+            CrisisResource(name: "Talk Suicide Canada", action: "call", value: "18334564566", description: "24/7 crisis support"),
+        ],
+        "AU": [
+            CrisisResource(name: "Lifeline Australia", action: "call", value: "131114", description: "24/7 crisis support"),
+        ],
+        "NZ": [
+            CrisisResource(name: "Lifeline NZ", action: "call", value: "0800543354", description: "24/7 crisis support"),
+        ],
+        "DE": [
+            CrisisResource(name: "Telefonseelsorge", action: "call", value: "08001110111", description: "Kostenlos, 24/7"),
+        ],
+        "FR": [
+            CrisisResource(name: "3114 - Numero national", action: "call", value: "3114", description: "Gratuit, 24h/24"),
+        ],
+        "ES": [
+            CrisisResource(name: "Telefono de la Esperanza", action: "call", value: "717003717", description: "24/7, gratuito"),
+        ],
+        "IT": [
+            CrisisResource(name: "Telefono Amico", action: "call", value: "0223272327", description: "Supporto emotivo"),
+        ],
+        "NL": [
+            CrisisResource(name: "113 Zelfmoordpreventie", action: "call", value: "113", description: "Gratis, 24/7"),
+        ],
+        "JP": [
+            CrisisResource(name: "Inochi no Denwa", action: "call", value: "0120783556", description: "24/7"),
+        ],
+        "KR": [
+            CrisisResource(name: "Mental Health Crisis Line", action: "call", value: "15770199", description: "24/7"),
+        ],
+        "BR": [
+            CrisisResource(name: "CVV", action: "call", value: "188", description: "24 horas, gratuito"),
+        ],
+        "IN": [
+            CrisisResource(name: "iCall", action: "call", value: "9152987821", description: "Mental health support"),
+        ],
+        "MX": [
+            CrisisResource(name: "SAPTEL", action: "call", value: "5552598121", description: "24 horas"),
+        ],
+        "TW": [
+            CrisisResource(name: "Suicide Prevention Hotline", action: "call", value: "1925", description: "24/7"),
+        ],
+        "SE": [
+            CrisisResource(name: "Mind Sjalvmordslinjen", action: "call", value: "90101", description: "Dygnet runt"),
+        ],
+        "CH": [
+            CrisisResource(name: "Die Dargebotene Hand", action: "call", value: "143", description: "24/7"),
+        ],
     ]
 
     // MARK: - Input Safety Check

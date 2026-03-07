@@ -26,11 +26,6 @@
 	<string>ca-app-pub-5300605522420042~6341428784</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
-	<key>NSAppTransportSecurity</key>
-	<dict>
-		<key>NSAllowsArbitraryLoads</key>
-		<true/>
-	</dict>
 	<key>NSUserTrackingUsageDescription</key>
 	<string>This allows us to show you relevant ads and support the free tier of the app.</string>
 	<key>SKAdNetworkItems</key>

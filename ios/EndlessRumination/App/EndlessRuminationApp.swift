@@ -13,15 +13,23 @@ struct EndlessRuminationApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            Group {
+                if DeviceCapability.canRunModel {
+                    ContentView()
+                } else {
+                    UnsupportedDeviceView()
+                }
+            }
                 .environment(appState)
                 .environment(subscriptionManager)
                 .task {
                     appState.subscriptionManager = subscriptionManager
                     await subscriptionManager.start()
 
-                    // Start model download immediately (runs in background)
-                    appState.inferenceEngine.startLoading()
+                    // Only start model download on capable devices
+                    if DeviceCapability.canRunModel {
+                        appState.inferenceEngine.startLoading()
+                    }
                 }
                 .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
                     // Request ATT after a brief delay so the app is fully visible

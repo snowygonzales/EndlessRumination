@@ -29,8 +29,21 @@ struct ShopView: View {
                         // Coming soon
                         comingSoonCard
 
-                        // Restore purchases
+                        // Restore purchases + manage subscription
                         restoreButton
+
+                        if appState.isPro {
+                            Button {
+                                if let url = URL(string: "https://apps.apple.com/account/subscriptions") {
+                                    UIApplication.shared.open(url)
+                                }
+                            } label: {
+                                Text("Manage Subscription")
+                                    .font(.system(size: 13))
+                                    .foregroundStyle(ERColors.secondaryText)
+                            }
+                            .frame(maxWidth: .infinity)
+                        }
 
                         // Legal links + account deletion
                         legalSection

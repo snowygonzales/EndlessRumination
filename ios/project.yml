@@ -41,8 +41,6 @@ targets:
           - UIInterfaceOrientationLandscapeLeft
           - UIInterfaceOrientationLandscapeRight
         NSUserTrackingUsageDescription: "This allows us to show you relevant ads and support the free tier of the app."
-        NSAppTransportSecurity:
-          NSAllowsArbitraryLoads: true
         GADApplicationIdentifier: "ca-app-pub-5300605522420042~6341428784"
         SKAdNetworkItems:
           - SKAdNetworkIdentifier: cstr6suwn9.skadnetwork
@@ -99,7 +97,7 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.endlessrumination.EndlessRumination
         INFOPLIST_FILE: EndlessRumination/Info.plist
         MARKETING_VERSION: "1.0.0"
-        CURRENT_PROJECT_VERSION: "20"
+        CURRENT_PROJECT_VERSION: "21"
         INFOPLIST_KEY_CFBundleDisplayName: "Endless Rumination"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor

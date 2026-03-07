@@ -257,7 +257,7 @@ struct OnboardingView: View {
                     )
                     privacyRow(
                         icon: "server.rack",
-                        text: "No cloud. No servers. No tracking."
+                        text: "No cloud. No servers. No data collection."
                     )
                 }
                 .padding(.horizontal, 32)
@@ -384,18 +384,24 @@ struct OnboardingView: View {
                         .foregroundStyle(ERColors.dimText)
                 }
             } else if let error = appState.inferenceEngine.loadError {
-                // Error
-                HStack(spacing: 4) {
-                    Image(systemName: "exclamationmark.triangle.fill")
-                        .font(.system(size: 10))
-                        .foregroundStyle(ERColors.accentRed)
-                    Text("Download failed")
-                        .font(.system(size: 10, design: .monospaced))
-                        .foregroundStyle(ERColors.accentRed.opacity(0.8))
+                // Error with retry
+                VStack(spacing: 2) {
+                    Button {
+                        appState.inferenceEngine.retryLoading()
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "arrow.clockwise")
+                                .font(.system(size: 10))
+                                .foregroundStyle(ERColors.accentRed)
+                            Text(error.contains("storage") ? "Not enough storage" : "Download failed -- tap to retry")
+                                .font(.system(size: 10, design: .monospaced))
+                                .foregroundStyle(ERColors.accentRed.opacity(0.8))
+                        }
+                    }
                 }
             }
         }
-        .frame(height: 24)
+        .frame(height: 28)
     }
 
     private var downloadStatusText: String {
