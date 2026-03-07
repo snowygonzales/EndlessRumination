@@ -53,6 +53,9 @@ final class InferenceEngine {
     private var modelContainer: ModelContainer?
     #endif
 
+    // Stop sequences to detect end of useful output during streaming
+    private let stopSequences = ["<|im_end|>", "<|endoftext|>", "<|im_start|>", "<think>"]
+
     // MARK: - Loading
 
     /// Begin downloading / loading the model in the background.
@@ -63,8 +66,8 @@ final class InferenceEngine {
 
         #if !targetEnvironment(simulator)
         // Limit Metal buffer cache to reduce memory pressure on 6GB devices
-        GPU.set(cacheLimit: 20 * 1024 * 1024)
-        log.info("GPU cache limit set to 20 MB")
+        Memory.cacheLimit = 20 * 1024 * 1024
+        log.info("MLX cache limit set to 20 MB")
         #endif
         loadTask = Task { [weak self] in
             do {
@@ -83,12 +86,18 @@ final class InferenceEngine {
         try await loadTask?.value
     }
 
+    #if !targetEnvironment(simulator)
+    /// Clear MLX buffer cache to reclaim GPU memory between generations.
+    func clearCache() {
+        Memory.clearCache()
+    }
+    #endif
+
     // MARK: - Generation
 
     /// Generate a response for the given system prompt and user message.
     func generate(systemPrompt: String, userMessage: String) async throws -> String {
         log.info("generate() called — systemPrompt length=\(systemPrompt.count), userMessage length=\(userMessage.count)")
-        log.info("Memory before generate: \(DeviceCapability.info)")
         #if targetEnvironment(simulator)
         return try await simulatorGenerate()
         #else
@@ -133,8 +142,17 @@ final class InferenceEngine {
                 }
             }
             isDownloading = false
+
+            // Warm up Metal shaders by running a tiny 1-token generation.
+            // The first inference triggers JIT shader compilation (~2-3s overhead).
+            // By paying that cost here (during load), the first real take starts fast.
+            log.info("Warming up GPU shaders...")
+            await warmUpGPU()
+
             isLoaded = true
-            log.info("Model loaded successfully. \(DeviceCapability.info)")
+
+            let snap = Memory.snapshot()
+            log.info("Model loaded + GPU warm. Active: \(snap.activeMemory / 1024 / 1024) MB, Cache: \(snap.cacheMemory / 1024 / 1024) MB, Peak: \(snap.peakMemory / 1024 / 1024) MB")
         } catch {
             isDownloading = false
             loadError = error.localizedDescription
@@ -145,6 +163,31 @@ final class InferenceEngine {
         #endif
     }
 
+    // MARK: - Private: GPU Warm-Up
+
+    #if !targetEnvironment(simulator)
+    /// Run a minimal generation to trigger Metal shader compilation.
+    /// This moves the ~2-3s JIT overhead from the first real take to the loading phase.
+    private func warmUpGPU() async {
+        guard let container = modelContainer else { return }
+        do {
+            let chat: [Chat.Message] = [
+                .system("You are helpful."),
+                .user("Hi"),
+            ]
+            let input = try await container.prepare(input: UserInput(chat: chat))
+            let params = GenerateParameters(maxTokens: 1, temperature: 0.0)
+            let stream = try await container.generate(input: input, parameters: params)
+            // Consume the stream to trigger shader compilation
+            for await _ in stream {}
+            Memory.clearCache()
+            log.info("GPU warm-up complete")
+        } catch {
+            log.warning("GPU warm-up failed (non-fatal): \(error.localizedDescription)")
+        }
+    }
+    #endif
+
     // MARK: - Private: Device Generation
 
     #if !targetEnvironment(simulator)
@@ -154,16 +197,11 @@ final class InferenceEngine {
             throw InferenceError.modelNotLoaded
         }
 
-        log.info("deviceGenerate: building chat messages...")
-
         // Build chat messages using the preferred Chat.Message API
         let chat: [Chat.Message] = [
             .system(systemPrompt),
             .user(userMessage),
         ]
-
-        log.info("deviceGenerate: preparing input (chat template + tokenize)...")
-        log.info("Memory before prepare: \(DeviceCapability.info)")
 
         // Prepare input (applies chat template, tokenizes)
         let input: LMInput
@@ -171,25 +209,22 @@ final class InferenceEngine {
             input = try await container.prepare(
                 input: UserInput(chat: chat)
             )
-            log.info("deviceGenerate: input prepared OK, token count=\(input.text.tokens.size)")
+            log.info("deviceGenerate: input prepared, token count=\(input.text.tokens.size)")
         } catch {
             log.error("deviceGenerate: prepare() FAILED: \(error.localizedDescription)")
-            log.error("Full error: \(String(describing: error))")
             throw InferenceError.generationFailed("prepare failed: \(error.localizedDescription)")
         }
 
-        log.info("deviceGenerate: starting generation stream...")
-        log.info("Memory before stream: \(DeviceCapability.info)")
-
-        // Generate via AsyncStream (preferred non-deprecated API)
+        // Generate via AsyncStream
         // maxTokens 200: takes are headline + 3-5 sentences (~120-180 tokens)
         // kvBits 4: quantize KV cache to reduce memory pressure on 6GB devices
+        // topP 1.0: uses faster CategoricalSampler (vs TopPSampler which requires argSort on full vocab)
         let parameters = GenerateParameters(
             maxTokens: 200,
             kvBits: 4,
             kvGroupSize: 64,
             temperature: 0.7,
-            topP: 0.95
+            topP: 1.0
         )
 
         let stream: AsyncStream<Generation>
@@ -198,36 +233,38 @@ final class InferenceEngine {
                 input: input,
                 parameters: parameters
             )
-            log.info("deviceGenerate: stream created OK")
         } catch {
             log.error("deviceGenerate: generate() FAILED: \(error.localizedDescription)")
-            log.error("Full error: \(String(describing: error))")
             throw InferenceError.generationFailed("generate failed: \(error.localizedDescription)")
         }
 
-        // Accumulate text chunks
+        // Accumulate text chunks with early stop detection
         var output = ""
         var chunkCount = 0
+        var stoppedEarly = false
         for await generation in stream {
             switch generation {
             case .chunk(let text):
                 output += text
                 chunkCount += 1
-                if chunkCount % 50 == 0 {
-                    log.info("deviceGenerate: \(chunkCount) chunks, \(output.count) chars so far")
+
+                // Early stop: check if any stop sequence appeared in the output.
+                // This avoids generating useless tokens past the real response end.
+                if stopSequences.contains(where: { output.contains($0) }) {
+                    stoppedEarly = true
+                    break
                 }
             case .info(let info):
-                log.info("deviceGenerate: DONE — \(String(format: "%.1f", info.tokensPerSecond)) tok/s, prompt=\(info.promptTokenCount), generated=\(info.generationTokenCount)")
+                log.info("deviceGenerate: \(String(format: "%.1f", info.tokensPerSecond)) tok/s, prompt=\(info.promptTokenCount), generated=\(info.generationTokenCount)\(stoppedEarly ? " (early stop)" : "")")
             case .toolCall:
                 break
             }
+            if stoppedEarly { break }
         }
 
-        log.info("deviceGenerate: stream finished. Total chunks=\(chunkCount), output length=\(output.count)")
-        log.info("Memory after generate: \(DeviceCapability.info)")
+        log.info("deviceGenerate: chunks=\(chunkCount), output length=\(output.count)\(stoppedEarly ? " [early stop]" : "")")
 
         let cleaned = cleanOutput(output)
-        log.info("deviceGenerate: cleaned output length=\(cleaned.count)")
         return cleaned
     }
     #endif
@@ -270,7 +307,7 @@ final class InferenceEngine {
 
         Consider this: in the grand tapestry of human experience, your current worry is but \
         a single thread. Yet it's YOUR thread, and that makes it matter. The strength isn't \
-        in avoiding the storm — it's in learning to dance in the rain. Every person who has \
+        in avoiding the storm -- it's in learning to dance in the rain. Every person who has \
         ever lived has faced a moment exactly like this one, and the vast majority came \
         through it whole.
         """,
@@ -281,7 +318,7 @@ final class InferenceEngine {
         From a neuroscience perspective, what's happening is completely predictable. Your \
         amygdala has flagged this situation as a threat, triggering a cortisol cascade that's \
         hijacking your prefrontal cortex. This is fight-or-flight doing what evolution \
-        designed — the problem is, it can't tell the difference between a tiger and a Tuesday. \
+        designed -- the problem is, it can't tell the difference between a tiger and a Tuesday. \
         Try 4-7-8 breathing right now: inhale 4, hold 7, exhale 8. Three rounds.
         """,
 

@@ -78,6 +78,11 @@ final class LocalTakeGenerator {
                 log.error("Full error: \(String(describing: error))")
                 continue
             }
+
+            // Clear GPU buffer cache between takes to reduce memory pressure
+            #if !targetEnvironment(simulator)
+            engine.clearCache()
+            #endif
         }
 
         log.info("generateTakes() finished — \(successCount)/\(lensIndices.count) succeeded")
@@ -114,12 +119,20 @@ final class LocalTakeGenerator {
 
     // MARK: - Output Parsing
 
+    /// Maximum words allowed in a headline. Anything longer is body text, not a real headline.
+    private static let maxHeadlineWords = 14
+
     /// Parse raw model output into a Take.
     ///
     /// Expected format (from FORMAT_INSTRUCTION):
     ///   Headline under 12 words
     ///
     ///   3-5 sentences of body text.
+    ///
+    /// Handles common model quirks:
+    ///   - Missing double-newline (tries single newline as fallback)
+    ///   - First line too long (body leaking into headline slot)
+    ///   - No separation at all (entire output used as body)
     private func parseTake(raw: String, lensIndex: Int) -> Take? {
         let cleaned = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !cleaned.isEmpty else {
@@ -127,24 +140,48 @@ final class LocalTakeGenerator {
             return nil
         }
 
-        // Split on first double-newline: headline \n\n body
-        let parts = cleaned.components(separatedBy: "\n\n")
+        // Try double-newline split first, then single-newline
+        let candidate = extractHeadlineAndBody(from: cleaned)
 
-        if parts.count >= 2 {
-            let headline = parts[0].trimmingCharacters(in: .whitespacesAndNewlines)
-            let body = parts.dropFirst()
+        if let (headline, body) = candidate {
+            let wordCount = headline.split(separator: " ").count
+            if wordCount <= Self.maxHeadlineWords && !body.isEmpty {
+                return Take(lensIndex: lensIndex, headline: headline, body: body)
+            }
+            // Headline too long — it's really body text, not a headline
+            log.info("parseTake: lens \(lensIndex) headline too long (\(wordCount) words), using fallback")
+        }
+
+        // Fallback: use entire output as body with generic headline
+        return Take(lensIndex: lensIndex, headline: "A Fresh Perspective", body: cleaned)
+    }
+
+    /// Try to split output into (headline, body) using double-newline, then single-newline.
+    private func extractHeadlineAndBody(from text: String) -> (String, String)? {
+        // Try double-newline split first (expected format)
+        let doubleParts = text.components(separatedBy: "\n\n")
+        if doubleParts.count >= 2 {
+            let headline = doubleParts[0].trimmingCharacters(in: .whitespacesAndNewlines)
+            let body = doubleParts.dropFirst()
                 .joined(separator: "\n\n")
                 .trimmingCharacters(in: .whitespacesAndNewlines)
-
-            guard !headline.isEmpty, !body.isEmpty else {
-                log.warning("parseTake: headline or body empty after split for lens \(lensIndex)")
-                return nil
+            if !headline.isEmpty, !body.isEmpty {
+                return (headline, body)
             }
-            return Take(lensIndex: lensIndex, headline: headline, body: body)
-        } else {
-            // No headline/body split — use the entire output as body
-            log.info("parseTake: no headline/body split for lens \(lensIndex), using fallback headline")
-            return Take(lensIndex: lensIndex, headline: "A Fresh Perspective", body: cleaned)
         }
+
+        // Fallback: try single-newline split (model sometimes uses \n instead of \n\n)
+        let singleParts = text.components(separatedBy: "\n")
+        if singleParts.count >= 2 {
+            let headline = singleParts[0].trimmingCharacters(in: .whitespacesAndNewlines)
+            let body = singleParts.dropFirst()
+                .joined(separator: "\n")
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            if !headline.isEmpty, !body.isEmpty {
+                return (headline, body)
+            }
+        }
+
+        return nil
     }
 }
