@@ -25,28 +25,15 @@ On first use, the App downloads the AI model (~2.1 GB) from HuggingFace over an 
 - We do **not** have user accounts, passwords, or login credentials
 - We do **not** operate servers or databases that store user content
 - We do **not** collect usage analytics
+- We do **not** use advertising SDKs or tracking frameworks
+- We do **not** access your device's advertising identifier (IDFA)
 
 ### Locally Stored Data
 The following data is stored only on your device and never transmitted:
 - App preferences (e.g., onboarding completion, AI consent status)
 - Subscription status (managed by Apple StoreKit)
 
-### Advertising Data (Free Tier Only)
-The free tier of the App displays banner advertisements served by **Google AdMob**. The AdMob SDK may collect:
-- Device advertising identifier (IDFA)
-- Device information (model, OS version)
-- Ad interaction data (impressions, clicks)
-- IP address (for approximate geographic targeting)
-
-You can limit ad personalization through your device settings:
-- **iOS**: Settings > Privacy & Security > Tracking
-
-The App requests your permission via Apple's App Tracking Transparency prompt before any ad-related identifiers are accessed. Pro subscribers do not see advertisements, and no ad-related data is collected for Pro users.
-
 ## Third-Party Services
-
-### Google AdMob
-See "Advertising Data" above. Google's privacy policy governs ad-related data collection.
 
 ### Apple (App Store & StoreKit)
 Subscription and in-app purchase payments are processed entirely by Apple via StoreKit. We do not receive or store your payment information. Apple's privacy policy applies to payment processing.
@@ -59,7 +46,6 @@ The AI model is downloaded from HuggingFace's servers on first use. This downloa
 - **Problem text**: Processed in device memory only. Never persisted to disk or transmitted.
 - **App preferences**: Stored locally on your device until you delete the App.
 - **AI model**: Stored locally on your device (~2.1 GB) until you delete the App.
-- **Advertising data**: Managed by Google AdMob per their retention policies.
 
 ## Data Deletion
 
@@ -73,6 +59,7 @@ To delete all App data:
 - The AI model download uses encrypted HTTPS connections
 - All AI processing occurs locally on your device with no network transmission
 - No user content is ever transmitted to or stored on external servers
+- No tracking, analytics, or advertising frameworks are included in the App
 
 ## Children's Privacy
 
@@ -81,10 +68,10 @@ The App is not intended for users under 17 years of age. We do not knowingly col
 ## Your Rights
 
 ### For California Residents (CCPA)
-You have the right to know what personal information we collect, request deletion, and opt out of the sale of personal information. We do not sell your personal information. The only data collection is via Google AdMob for free-tier users (see above).
+You have the right to know what personal information we collect, request deletion, and opt out of the sale of personal information. We do not sell your personal information. We do not collect personal information beyond what is stored locally on your device.
 
 ### For EEA/UK Residents (GDPR)
-Our lawful basis for ad-related data processing is consent (via Apple's App Tracking Transparency prompt). You have the right to withdraw consent at any time through your device's privacy settings. Since no personal data is transmitted to our servers, most GDPR data subject rights are satisfied by design. You have the right to lodge a complaint with your supervisory authority.
+Since no personal data is transmitted to our servers or any third party (other than Apple for payment processing), most GDPR data subject rights are satisfied by design. You have the right to lodge a complaint with your supervisory authority.
 
 ## Changes to This Policy
 

@@ -1,15 +1,9 @@
 import SwiftUI
-import GoogleMobileAds
-import AppTrackingTransparency
 
 @main
 struct EndlessRuminationApp: App {
     @State private var appState = AppState()
     @State private var subscriptionManager = SubscriptionManager()
-
-    init() {
-        GADMobileAds.sharedInstance().start(completionHandler: nil)
-    }
 
     var body: some Scene {
         WindowGroup {
@@ -29,12 +23,6 @@ struct EndlessRuminationApp: App {
                     // Only start model download on capable devices
                     if DeviceCapability.canRunModel {
                         appState.inferenceEngine.startLoading()
-                    }
-                }
-                .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
-                    // Request ATT after a brief delay so the app is fully visible
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                        ATTrackingManager.requestTrackingAuthorization { _ in }
                     }
                 }
                 .preferredColorScheme(.dark)

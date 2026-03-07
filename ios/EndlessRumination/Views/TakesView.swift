@@ -56,10 +56,6 @@ struct TakesView: View {
             .contentShape(Rectangle())
             .gesture(swipeGesture)
 
-            // Ad banner (free tier only)
-            if !appState.isPro {
-                AdBannerView()
-            }
         }
     }
 

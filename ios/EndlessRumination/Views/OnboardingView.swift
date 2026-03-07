@@ -257,7 +257,7 @@ struct OnboardingView: View {
                     )
                     privacyRow(
                         icon: "server.rack",
-                        text: "No cloud. No servers. No data collection."
+                        text: "No cloud. No servers. No tracking."
                     )
                 }
                 .padding(.horizontal, 32)

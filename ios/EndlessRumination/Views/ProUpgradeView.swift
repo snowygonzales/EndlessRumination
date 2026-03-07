@@ -47,8 +47,7 @@ struct ProUpgradeView: View {
                 VStack(alignment: .leading, spacing: 20) {
                     benefitRow(icon: "sparkles", text: "All 20 perspectives on every problem")
                     benefitRow(icon: "brain.head.profile", text: "Premium AI for deeper, wiser takes")
-                    benefitRow(icon: "eye.slash", text: "No ads")
-                    benefitRow(icon: "clock.arrow.circlepath", text: "Save your history forever")
+                    benefitRow(icon: "arrow.up.arrow.down", text: "Revisit takes -- swipe back anytime")
                 }
                 .padding(.horizontal, 32)
 

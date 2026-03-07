@@ -1,112 +1,57 @@
 # Pre-Release Checklist — Endless Rumination v1.0.0 (On-Device)
 
 Last updated: 2026-03-07
-Target: iOS-only worldwide release, on-device inference (no backend)
-Current build: v1.0.0 build 20, branch `experiment/on-device-inference`
+Target: iOS-only worldwide release, on-device inference (no backend, no ads)
+Current build: v1.0.0 build 22, branch `experiment/on-device-inference`
 Min iOS: 18.0
 
 ---
 
-## Critical Blockers (must fix before submission)
+## Critical Blockers — ALL DONE
 
-### C1. Privacy Policy — Factually Wrong
-The current privacy-policy.md describes cloud API architecture that no longer exists:
-- [ ] Remove "Problem text is sent to our server for processing"
-- [ ] Remove all references to Anthropic's Claude API and Anthropic's servers
-- [ ] Remove "Account Information" section (no accounts exist on-device)
-- [ ] Remove "hashed password" and "database" references
-- [ ] Remove Railway server references
-- [ ] Remove Google Play Billing references (iOS-only release)
-- [ ] Add "All AI processing happens entirely on your device" language
-- [ ] Add model download from HuggingFace disclosure (one-time HTTPS download)
-- [ ] Keep AdMob / IDFA / ad tracking disclosures (still accurate)
-- [ ] Keep StoreKit / Apple payment processing section
-- [ ] Update "Data Retention" to reflect no server storage
-- [ ] Update "Security" to reflect on-device processing
-- [ ] Update date to current
-
-### C2. Terms of Service — Factually Wrong
-- [ ] Remove "using Anthropic's Claude AI" from description
-- [ ] Replace with "using an on-device AI model"
-- [ ] Remove Android/Google Play references (iOS-only for now)
-- [ ] Keep AI-generated content disclaimer
-- [ ] Keep mental health disclaimer and crisis resources
-- [ ] Keep subscription and voice pack purchase terms
-- [ ] Update date to current
-
-### C3. ATS Override — Remove
-`NSAllowsArbitraryLoads: true` in project.yml is unnecessary:
-- [ ] Remove `NSAllowsArbitraryLoads: true` from project.yml Info.plist properties
-- HuggingFace model download uses HTTPS (no exception needed)
-- AdMob SDK handles its own ATS exceptions via SKAdNetwork
-- Apple reviewers flag blanket ATS overrides
-
-### C4. Onboarding Privacy Claims — Misleading
-Privacy page (page 3) claims "No cloud. No servers. No tracking." — contradicts AdMob:
-- [ ] Change "No tracking" to accurate language (e.g., "No data tracking" or remove the line)
-- [ ] Or clarify: "Your thoughts never leave this device. Ads are served by Google AdMob."
-- Keep: "AI runs entirely on your iPhone", "Works offline after setup", "Your thoughts never leave this device"
+- [x] C1. Privacy policy rewritten for on-device architecture
+- [x] C2. Terms of Service updated for on-device model
+- [x] C3. ATS override removed
+- [x] C4. Onboarding privacy claims now accurate (no ads = "No tracking" is true)
+- [x] Ads removed entirely (GoogleMobileAds, ATT, SKAdNetwork, IDFA all stripped)
 
 ---
 
-## High Priority (should fix before submission)
+## High Priority
 
-### H1. Unsupported Device Screen
-4GB devices (iPhone 12, 13, SE 3rd) can install the app, download 2.1 GB, then get an error.
-- [ ] Add a graceful screen shown BEFORE model download for unsupported devices
-- [ ] Show device RAM, explain minimum requirement (6 GB)
-- [ ] DeviceCapability.canRunModel already checks this — wire it into the app flow
-- [ ] Consider showing this at first launch, before onboarding
-
-### H2. Model Download Retry
-If download fails (network drop, backgrounded, etc.), user is stuck:
-- [ ] Add retry button when download fails (currently shows "Download failed" with no action)
-- [ ] Consider resume support (URLSession background download)
-- [ ] Show error message with actionable guidance
-
-### H3. iPad Support Decision
-project.yml `platform: iOS` defaults to iPhone-only. iPads can run in compatibility mode.
-- [ ] **Decision needed:** Explicitly support iPad, or keep iPhone-only?
-  - If iPhone-only: No code changes needed, iPads run in compatibility mode
-  - If iPad: Add `TARGETED_DEVICE_FAMILY: "1,2"`, test portrait layout on iPad screen sizes
-- [ ] If supporting iPad: test on iPad simulator (portrait-only is fine for v1.0)
-
-### H4. Increased Memory Limit Entitlement
-The 2.0 GB model on 6 GB devices benefits from this entitlement:
-- [ ] Enable "Increased Memory Limit" capability in Apple Developer Portal for the App ID
-- [ ] Re-download provisioning profile (Xcode automatic signing should handle this)
-- [ ] Add `com.apple.developer.kernel.increased-memory-limit` to entitlements file
-- Note: App still works without it on 6 GB devices, but this provides safety margin
+- [x] H1. Unsupported device screen for <6GB RAM devices
+- [x] H2. Model download retry mechanism
+- [ ] H3. iPad support — **deferred to v1.1** (iPhone-only for v1.0, iPads run in compatibility mode)
+- [ ] H4. Increased Memory Limit entitlement — **MANUAL: enable in Apple Developer Portal, then add to entitlements file**
 
 ---
 
-## Medium Priority (recommended before submission)
+## Medium Priority
 
-### M1. App Store Review Notes
-Reviewer needs context about the AI model and on-device processing:
-- [ ] Write App Review Notes explaining:
+### M1. App Store Review Notes (MANUAL)
+- [ ] Write App Review Notes in App Store Connect explaining:
   - App downloads a 2.1 GB AI model on first launch
   - All AI processing happens on-device (no network calls for content generation)
+  - No ads, no tracking, no analytics
   - AI consent dialog gates first use
   - Content safety: input blocklist + output blocklist + safety preamble in prompts
   - Report/flag button on all AI-generated content
   - Not a mental health tool — medical disclaimer shown prominently
 
-### M2. App Privacy Nutrition Labels
+### M2. App Privacy Nutrition Labels (MANUAL)
 - [ ] Complete privacy questionnaire in App Store Connect:
-  - Data Used to Track You: Device ID (via AdMob, for free tier only)
-  - Data Not Linked to You: Usage Data, Diagnostics
-  - Data Not Collected: everything else (no accounts, no server, no content collection)
+  - Data Not Collected: Select all categories (no tracking, no analytics, no ads, no accounts)
+  - This is the cleanest possible privacy label
 
-### M3. Age Rating Questionnaire
+### M3. Age Rating Questionnaire (MANUAL)
 - [ ] Select content descriptors in App Store Connect:
   - No violence, no mature themes, no gambling
   - "Infrequent/Mild" for Medical/Treatment Information
   - Consider "17+" due to mental health content sensitivity
 
-### M4. Store Listing
+### M4. Store Listing (MANUAL)
 - [ ] Write and upload to App Store Connect:
-  - App description (emphasize privacy, on-device AI, no data collection)
+  - App description (emphasize privacy, on-device AI, zero data collection)
   - Subtitle (max 30 chars, e.g., "Private AI Perspectives")
   - Keywords (max 100 chars)
   - Promotional text
@@ -114,7 +59,7 @@ Reviewer needs context about the AI model and on-device processing:
   - 6.7" (iPhone 15 Pro Max / 16 Pro Max)
   - 6.5" (iPhone 15 Plus / 14 Pro Max)
 
-### M5. IAP Review Screenshots
+### M5. IAP Review Screenshots (MANUAL)
 - [ ] Upload screenshots for each of the 5 IAP products in App Store Connect:
   - `com.endlessrumination.pro.monthly` (subscription)
   - `com.endlessrumination.pack.strategists`
@@ -122,39 +67,26 @@ Reviewer needs context about the AI model and on-device processing:
   - `com.endlessrumination.pack.philosophers`
   - `com.endlessrumination.pack.creators`
 
-### M6. Subscription Management Deep Link
-Apple requires apps to make it easy to manage subscriptions:
-- [ ] Add "Manage Subscription" button in ShopView that opens:
-  `UIApplication.shared.open(URL(string: "https://apps.apple.com/account/subscriptions")!)`
-
-### M7. Storage Space Check
-Model is 2.1 GB — users need adequate free space:
-- [ ] Check available disk space before starting download
-- [ ] Show storage requirement (e.g., "Requires 2.1 GB of free space") in onboarding
-- [ ] Show friendly error if insufficient space
+### Code-Level Items — ALL DONE
+- [x] M6. Subscription management deep link in ShopView
+- [x] M7. Storage space check before model download
 
 ---
 
 ## Low Priority (nice to have)
 
 ### L1. Privacy Manifest (PrivacyInfo.xcprivacy)
-Apple now requires privacy manifests for apps using certain APIs:
 - [ ] Create PrivacyInfo.xcprivacy declaring:
   - `NSPrivacyAccessedAPICategoryUserDefaults` (UserDefaults usage)
-  - `NSPrivacyAccessedAPICategoryFileTimestamp` (if any file timestamp access)
   - `NSPrivacyAccessedAPICategoryDiskSpace` (disk space check)
-- [ ] AdMob SDK should include its own privacy manifest
 
 ### L2. Accessibility
-- [ ] Add accessibility labels to key UI elements (take cards, lens badges, buttons)
+- [ ] Add accessibility labels to key UI elements
 - [ ] Test with VoiceOver enabled
 - [ ] Ensure Dynamic Type works for body text
 
 ### L3. UIRequiredDeviceCapabilities
-Could restrict installation to capable devices at the App Store level:
-- [ ] Consider adding `UIRequiredDeviceCapabilities` in Info.plist
-  - `metal` — all supported devices have this, but makes intent explicit
-  - Note: There is no capability key for minimum RAM, so 4GB devices can still install
+- [ ] Consider adding `UIRequiredDeviceCapabilities` → `metal` in Info.plist
 
 ---
 
@@ -187,7 +119,7 @@ Could restrict installation to capable devices at the App Store level:
 | iPhone 16 Pro Max | A18 Pro | 8 GB | Supported |
 | iPhone 16e | A18 | 8 GB | Supported |
 
-### Unsupported iPhones (iOS 18 but <6GB RAM — app installs but cannot run model)
+### Unsupported iPhones (iOS 18 but <6GB RAM — app installs but shows unsupported screen)
 
 | Device | Chip | RAM | Reason |
 |--------|------|-----|--------|
@@ -202,76 +134,33 @@ Could restrict installation to capable devices at the App Store level:
 | iPhone 13 mini | A15 | 4 GB | Insufficient RAM |
 | iPhone SE 3rd gen | A15 | 4 GB | Insufficient RAM |
 
-### Supported iPads (iPadOS 18 + 6GB+ RAM)
+### Supported iPads (iPadOS 18 + 6GB+ RAM) — deferred to v1.1
 
 | Device | Chip | RAM | Status |
 |--------|------|-----|--------|
-| iPad Pro 11" 2nd gen (2020) | A12Z | 6 GB | Supported |
-| iPad Pro 12.9" 4th gen (2020) | A12Z | 6 GB | Supported |
-| iPad Pro 11" 3rd gen (2021) | M1 | 8-16 GB | Supported |
-| iPad Pro 12.9" 5th gen (2021) | M1 | 8-16 GB | Supported |
-| iPad Pro 11" 4th gen (2022) | M2 | 8-16 GB | Supported |
-| iPad Pro 12.9" 6th gen (2022) | M2 | 8-16 GB | Supported |
-| iPad Pro 11" (2024) | M4 | 8-16 GB | Supported |
-| iPad Pro 13" (2024) | M4 | 8-16 GB | Supported |
-| iPad Air 5th gen (2022) | M1 | 8 GB | Supported |
-| iPad Air 11" (2024) | M2 | 8 GB | Supported |
-| iPad Air 13" (2024) | M2 | 8 GB | Supported |
-| iPad mini 7th gen (2024) | A17 Pro | 8 GB | Supported |
-
-Note: iPad Pro 11" 1st gen (2018) / 12.9" 3rd gen (2018) have A12X with 4 GB (base) or 6 GB (1 TB model only) — excluded due to inconsistent RAM across storage tiers.
-
-### Unsupported iPads (iPadOS 18 but <6GB RAM)
-
-| Device | Chip | RAM | Reason |
-|--------|------|-----|--------|
-| iPad 8th gen | A12 | 3 GB | Insufficient RAM |
-| iPad 9th gen | A13 | 3 GB | Insufficient RAM |
-| iPad 10th gen | A14 | 4 GB | Insufficient RAM |
-| iPad Air 4th gen | A14 | 4 GB | Insufficient RAM |
-| iPad mini 6th gen | A15 | 4 GB | Insufficient RAM |
+| iPad Pro 11" 2nd gen (2020) | A12Z | 6 GB | Compatible (runs in iPhone mode) |
+| iPad Pro 12.9" 4th gen (2020) | A12Z | 6 GB | Compatible (runs in iPhone mode) |
+| iPad Pro 11" 3rd+ gen (M1/M2/M4) | M-series | 8-16 GB | Compatible (runs in iPhone mode) |
+| iPad Air 5th gen+ (M1/M2) | M-series | 8 GB | Compatible (runs in iPhone mode) |
+| iPad mini 7th gen (2024) | A17 Pro | 8 GB | Compatible (runs in iPhone mode) |
 
 ---
 
-## GDPR / Privacy Compliance
+## GDPR / Privacy Compliance — Excellent Position
 
-### On-Device Processing — Strong Position
 - All AI inference runs locally on the device
-- No user content (problem text, AI responses) is transmitted to any server
+- No user content transmitted to any server
 - No user accounts, no backend database, no server logs
-- Problem text is processed in memory and never persisted (free tier) or persisted only locally (Pro session history)
-
-### AdMob — Requires Disclosure
-- Google AdMob SDK collects device identifiers (IDFA) and ad interaction data
-- ATT prompt is implemented (iOS requirement for IDFA access)
-- Users can opt out of personalized ads via device settings
-- Pro subscribers see no ads (no AdMob data collection for Pro users)
-- **GDPR basis:** Consent (ATT prompt) for ad personalization; Legitimate interest for non-personalized ads
-
-### StoreKit — Apple Handles
-- All payment processing handled by Apple
-- No payment data touches the app or any custom server
-- Apple's GDPR compliance applies to payment data
+- No advertising SDKs, no tracking frameworks, no analytics
+- No IDFA access, no ATT prompt needed
+- Only third-party data processing: Apple StoreKit (payments) and HuggingFace (one-time model download)
+- **Privacy label: "Data Not Collected"** — the cleanest possible App Store privacy label
 
 ### Data Subject Rights
-- **Right to erasure:** No server-side data to delete; app can be uninstalled to remove all local data
+- **Right to erasure:** Delete the app to remove all local data
 - **Right to access:** All data is local on user's device
 - **Right to portability:** N/A (no data collected)
 - **Data Protection Officer:** Not required (no systematic large-scale processing)
-
-### Recommendations
-- [ ] Update Privacy Policy to accurately reflect on-device architecture (see C1 above)
-- [ ] Consider adding in-app "Delete All Data" button (clears UserDefaults + any cached model data)
-- [ ] Ensure ATT prompt appears before any AdMob initialization (currently implemented)
-
----
-
-## AdMob Console
-
-- [ ] Review age-appropriate ad categories in AdMob console
-  - App ID: `ca-app-pub-5300605522420042`
-  - Ensure ad content is appropriate for the app's audience
-  - Consider blocking sensitive categories (dating, alcohol, gambling)
 
 ---
 
