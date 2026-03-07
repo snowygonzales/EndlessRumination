@@ -58,3 +58,10 @@ android/keystore.properties
 android/play-service-account.json
 *.apk
 *.aab
+
+# On-device model experiment
+data/
+models/
+*.gguf
+*.mlmodelc
+.mlx-venv/

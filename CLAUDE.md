@@ -5,12 +5,33 @@ Psychology app with two independent native frontends (SwiftUI iOS + Jetpack Comp
 
 **Architecture:** Two fully native apps sharing code by convention (same API contract, models, design system, business rules) — not by shared code. The backend is platform-agnostic. KMP (Compose Multiplatform) was previously used but abandoned due to rendering quality issues on iOS; `multiplatform/` is archived as reference only.
 
+### On-Device Inference Experiment (Active)
+**Branch:** `experiment/on-device-inference` (cloud API preserved on `master`, tagged `v0.4.0-cloud-api`)
+**Full guide:** `experiment_steps.md` — **read this FIRST** for any experiment-related work.
+
+Pivoting from cloud Claude API to fully on-device inference using fine-tuned **Qwen 3.5 4B** via **Apple MLX**. Goal: privacy-first iOS app positioned for App Store featuring ("your thoughts never leave this device").
+
+**Status:** Steps 1-6 complete (dataset, MLX verify, SFT, DPO, merge, eval, optimize, MLX convert, iOS refactor). Build 19 fixes tokenizer crash. Build 20 adds safety hardening, UX fixes, Pro take navigation. **Next: Step 7 — device testing.**
+
+Key tech choices:
+- **Model:** Qwen 3.5 4B only (2B dropped — insufficient comprehension) — Gated DeltaNet architecture
+- **Training:** Unsloth with **bf16 LoRA** (NOT QLoRA — breaks Gated DeltaNet)
+- **Inference:** Apple MLX via mlx-swift (~40% faster than llama.cpp, WWDC 2025 featured)
+- **iOS minimum:** iOS 18 (up from 17, required by mlx-swift Metal kernels)
+- **Optimized model:** Vision encoder stripped + vocab pruned (248K→140K tokens), 4-bit ≈ 2.0 GB, targets 6GB devices
+- **Generation params:** temperature=0.7, top_k=40, top_p=0.95
+- **Budget:** $93.55 of $100 spent on dataset generation (Sonnet + Haiku API calls)
+
 ## Key Commands
 - Backend (local): `cd backend && source .venv/bin/activate && uvicorn app.main:app --reload`
 - Backend (Docker): `cd backend && docker-compose up`
 - Backend tests: `cd backend && pytest -v` (42 tests, all passing — SQLite + mocked Claude)
 - iOS project: `cd ios && xcodegen generate && open EndlessRumination.xcodeproj`
 - iOS tests: Cmd+U in Xcode (9 tests)
+- iOS debug build (generic): `cd ios && xcodegen generate && xcodebuild -scheme EndlessRumination -sdk iphoneos -destination generic/platform=iOS -configuration Debug -derivedDataPath /tmp/ER-Debug build`
+- iOS install on device: `xcrun devicectl device install app --device "9C36724C-82EF-534E-8B33-A51283B7EE70" /tmp/ER-Debug/Build/Products/Debug-iphoneos/EndlessRumination.app` (device must be unlocked)
+- iOS stream device logs: `log stream --predicate 'subsystem == "com.endlessrumination"' --style compact`
+- **Connected device**: iPhone 14 (iPhone14,7), CoreDevice ID: `9C36724C-82EF-534E-8B33-A51283B7EE70`, xcodebuild ID: `00008110-001C50110E88201E`
 - iOS TestFlight: `cd ios && xcodegen generate && xcodebuild -scheme EndlessRumination -sdk iphoneos -configuration Release -archivePath /tmp/ER-iOS.xcarchive archive && xcodebuild -exportArchive -archivePath /tmp/ER-iOS.xcarchive -exportOptionsPlist /tmp/ExportOptions.plist -exportPath /tmp/ER-iOS-Export -allowProvisioningUpdates -authenticationKeyPath ~/.appstoreconnect/private_keys/AuthKey_8YM9M9P47X.p8 -authenticationKeyID 8YM9M9P47X -authenticationKeyIssuerID e5829743-777b-4a9f-a968-30a8714fb272`
 - Android build: `cd android && JAVA_HOME=/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home ./gradlew :app:assembleDebug`
 - Android install: `~/Library/Android/sdk/platform-tools/adb install -r android/app/build/outputs/apk/debug/app-debug.apk`
@@ -19,16 +40,32 @@ Psychology app with two independent native frontends (SwiftUI iOS + Jetpack Comp
 - Android emulator: `~/Library/Android/sdk/emulator/emulator -avd Pixel_API_35 &`
 - Deploy to Railway: `railway up --detach` (from project root)
 
+### On-Device Experiment Commands (Mac)
+- Distillation scripts: `source backend/.venv/bin/activate && python scripts/distillation/<script>.py`
+- MLX inference test: `source .mlx-venv/bin/activate && python -m mlx_lm.generate --model mlx-community/Qwen3.5-4B-4bit --prompt "test"`
+- Budget check: `source backend/.venv/bin/activate && python -c "from scripts.distillation.cost_tracker import print_budget_status; print_budget_status()"`
+
+### On-Device Experiment Commands (PC/WSL2)
+- Activate venv: `source ~/er-train-venv/bin/activate && cd ~/er-training`
+- SFT 4B (verified): `python scripts/training/sft_train.py --model 4b --batch-size 4 --grad-accum 4`
+- DPO training: `python scripts/training/dpo_train.py --model 4b`
+- Merge LoRA + export: `python scripts/training/merge_and_export.py --model 4b`
+- Optimize for device: `python scripts/training/optimize_for_device.py --model 4b --prune-vocab`
+- MLX convert (Mac): `python -m mlx_lm.convert --model ./models/er-qwen35-4b-optimized --quantize --q-bits 4 --q-group-size 64 -o ./models/er-qwen35-4b-mlx-4bit`
+- Eval UI: `pip install gradio && python scripts/evaluation/eval_ui.py --model-path models/er-qwen35-4b-dpo --adapter` (accessible at `http://<PC_IP>:7860`)
+- ⚠️ MUST run from native Linux FS (`~/er-training/`), NOT `/mnt/c/` — severe I/O bottleneck otherwise
+
 ## Architecture
 - Two native frontends → FastAPI gateway → Claude Sonnet/Haiku hybrid API
-- Free tier: 5 lenses (1 Sonnet "Wise" at index 1 + 4 Haiku), 3 submissions/month
-- Pro ($9.99/mo): All 20 base lenses on Sonnet, 50/day, no ads, history saved
+- Free tier: 5 random lenses from all 20 each run, forward-only (takes gone forever)
+- Pro ($9.99/mo): All 20 base lenses, bidirectional take navigation within a session, no ads
 - Voice Packs ($4.99 each, non-consumable IAP): 4 packs × 5 voices (indices 20-39), all Sonnet
   - Strategists (20-24), Revolutionaries (25-29), Philosophers (30-34), Creators (35-39)
   - Pack voices append after base takes in the doom scroll
 - PostgreSQL for users/takes, Redis for rate limiting (optional, degrades gracefully)
 - SSE streaming for real-time take delivery
 - xcodegen for iOS Xcode project generation (project.yml → .xcodeproj)
+- **Safety layers (on-device):** Input blocklist with Unicode normalization + safety preamble in all system prompts + output blocklist on model responses + functional report/flag button with crisis resources
 
 ## Directory Structure
 ```
@@ -36,18 +73,40 @@ EndlessRumination/
 ├── backend/                    # FastAPI backend (Python)
 ├── ios/                        # SwiftUI native iOS app
 ├── android/                    # Jetpack Compose native Android app
-├── scripts/                    # IAP product creation scripts (ASC + Play)
+├── scripts/
+│   ├── create_asc_products.py  # IAP product creation (App Store Connect)
+│   ├── create_play_products.py # IAP product creation (Google Play)
+│   ├── distillation/           # Dataset generation pipeline (Mac, steps 1.1-1.6)
+│   ├── training/               # Fine-tuning scripts (PC/WSL2, steps 3-4)
+│   └── evaluation/             # Gradio eval UI (PC/WSL2, step 4.4)
+├── data/                       # Generated training data (gitignored)
+├── models/                     # Trained models + MLX exports (gitignored)
+├── .mlx-venv/                  # Python 3.12 venv for MLX (gitignored)
 ├── multiplatform/              # ARCHIVED — KMP reference code only
 ├── docs/                       # Privacy policy, ToS, support, release checklist
+├── experiment_steps.md         # On-device inference pipeline guide
 ├── CLAUDE.md
 └── KICKOFF.md
 ```
 
 ## Environment & Infrastructure
-- **Machine**: Mac Mini M1, macOS, Xcode 16, Python 3.9
+
+### Mac Mini M1 (dataset generation, iOS builds, model conversion)
+- **Machine**: Mac Mini M1, macOS, Xcode 16, Python 3.9 (system)
+- **Python 3.12** via Homebrew for MLX: `/opt/homebrew/opt/python@3.12/bin/python3.12`, venv at `.mlx-venv/`
 - **JDK**: OpenJDK 17 via Homebrew (`JAVA_HOME=/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home`)
 - **Android SDK**: `~/Library/Android/sdk` (cmdline-tools, platform-tools, emulator, API 35 ARM64)
 - **iOS simulator**: iPhone 17 Pro (ID: `8C545099-AF9E-4D62-A716-E0826851F18D`)
+- PostgreSQL 16 + Redis via Homebrew (not Docker)
+
+### PC with RTX 5090 (training only, via WSL2)
+- **GPU**: NVIDIA RTX 5090 (32GB VRAM), Blackwell architecture (SM_120)
+- **Runtime**: WSL2 (not native Windows)
+- **PyTorch**: Must use nightly with CUDA 12.8 (`pip install torch --extra-index-url https://download.pytorch.org/whl/cu128`)
+- Flash Attention 2/3 do NOT work on Blackwell — Unsloth uses Triton kernels instead
+- WSL2 has phantom OOM errors — start conservative, scale up
+
+### Cloud Infrastructure
 - **Production API**: https://backend-production-5537.up.railway.app
 - **Railway dashboard**: https://railway.com/project/30951286-357e-4529-a21c-bb527d62eb13
 - **Privacy policy**: https://github.com/snowygonzales/EndlessRumination/blob/master/docs/privacy-policy.md
@@ -57,7 +116,6 @@ EndlessRumination/
 - **GitHub repo**: Public (required for reviewer-accessible privacy policy/ToS URLs)
 - iOS debug builds → localhost:8000, release builds → Railway URL
 - Android always uses Railway production URL
-- PostgreSQL 16 + Redis via Homebrew (not Docker)
 
 ### CLI Publishing (both platforms — no GUI needed)
 - **iOS → TestFlight**: App Store Connect API key `8YM9M9P47X` at `~/.appstoreconnect/private_keys/AuthKey_8YM9M9P47X.p8`, Issuer `e5829743-777b-4a9f-a968-30a8714fb272`. Bundle ID: `com.endlessrumination.EndlessRumination`. ExportOptions plist at `/tmp/ExportOptions.plist` (method: app-store-connect, teamID: R6N5B4SDWH, destination: upload, signingStyle: automatic).
@@ -71,10 +129,12 @@ EndlessRumination/
 - `ios/project.yml` — xcodegen project definition (SPM packages, build settings, Info.plist)
 - `ios/EndlessRumination/App/EndlessRuminationApp.swift` — App entry point, GAD init, ATT prompt, AI consent overlay
 - `ios/EndlessRumination/App/AppState.swift` — @Observable state management, AI consent persistence
-- `ios/EndlessRumination/Services/APIClient.swift` — URLSession HTTP + SSE streaming actor
+- `ios/EndlessRumination/Services/InferenceEngine.swift` — On-device MLX LLM inference (model download, loading, generation)
+- `ios/EndlessRumination/Services/LocalTakeGenerator.swift` — Sequential per-lens take generation using InferenceEngine
+- `ios/EndlessRumination/Services/DeviceCapability.swift` — RAM/memory checks for model compatibility
 - `ios/EndlessRumination/Services/SubscriptionManager.swift` — StoreKit 2 billing, receipt verification
-- `ios/EndlessRumination/Services/SafetyService.swift` — Client blocklist + server safety check
-- `ios/EndlessRumination/Models/` — Take, Lens, VoicePack, User
+- `ios/EndlessRumination/Services/SafetyService.swift` — Client blocklist safety check
+- `ios/EndlessRumination/Models/` — Take, Lens, VoicePack, LensPrompts
 - `ios/EndlessRumination/Views/` — All screens + AdBannerView, AIConsentView, OnboardingView
 - `ios/EndlessRumination/Theme/` — ERColors, ERTypography, ERAnimations
 
@@ -108,6 +168,24 @@ EndlessRumination/
 ### Scripts
 - `scripts/create_asc_products.py` — Creates/updates all IAP products in App Store Connect via REST API (JWT auth, idempotent)
 - `scripts/create_play_products.py` — Creates subscription in Google Play via API (voice packs require Play Console UI)
+
+### Distillation Scripts (on-device experiment, Mac)
+- `scripts/distillation/cost_tracker.py` — Shared $100 pipeline budget tracker (`data/.pipeline_cost_tracker.json`)
+- `scripts/distillation/generate_seeds.py` — Step 1.1: 200 seed worry prompts via Sonnet
+- `scripts/distillation/expand_seeds.py` — Step 1.2: Expand to 1,197 prompts + dedup
+- `scripts/distillation/generate_responses.py` — Step 1.3: 14,520 teacher responses via Sonnet (20 lenses × prompts)
+- `scripts/distillation/filter_quality.py` — Step 1.4: Haiku scoring, 4+ on all dimensions → 8,850 kept (61%)
+- `scripts/distillation/generate_dpo_pairs.py` — Step 1.5: 1,900 intentionally bad response pairs
+- `scripts/distillation/format_training_data.py` — Step 1.6: ChatML format + 90/10 train/val split
+
+### Training Scripts (on-device experiment, PC/WSL2)
+- `scripts/training/sft_train.py` — Steps 3.2-3.3: bf16 LoRA SFT via Unsloth
+- `scripts/training/dpo_train.py` — Steps 4.1-4.2: DPO alignment (vanilla PEFT + TRL, NOT Unsloth)
+- `scripts/training/merge_and_export.py` — Step 4.3: Merge LoRA + export to HF format
+- `scripts/training/optimize_for_device.py` — Step 4.5: Strip vision encoder + prune vocab for 6GB devices
+
+### Evaluation Scripts (on-device experiment, PC or Mac)
+- `scripts/evaluation/eval_ui.py` — Step 4.4: Gradio web UI for human quality evaluation (all 40 lenses, batch mode, ratings)
 
 ### Archived
 - `multiplatform/` — KMP Compose Multiplatform code (archived, reference only)
@@ -210,8 +288,8 @@ All 5 Android IAP products are created in Google Play Console:
 - 7 backend tests in `test_subscription.py` (mocked validators)
 
 ### Current Build Numbers
-- iOS: v0.4.0 build 14 (TestFlight)
-- Android: versionCode 6 (Internal Testing, DRAFT status)
+- iOS: v1.0.0 build 20 (on-device inference, safety hardening, UX fixes)
+- Android: versionCode 6 (Internal Testing, DRAFT status — still cloud API)
 
 ## Tech Stacks
 
@@ -245,12 +323,27 @@ All code-level app store compliance items are implemented:
 - **Terms of Service** — AI content disclaimer, subscription terms, liability limits (`docs/terms-of-service.md`)
 - **Remaining manual tasks** — See `docs/release_todo.md`
 
+## Deployment Rules
+- **NEVER push to TestFlight or App Store without explicit user command** — always ask and wait for confirmation before archiving/uploading
+- **NEVER push to Google Play without explicit user command** — same rule applies
+- Default to debug builds directly to connected device for testing
+- Use `os.log` with `Logger(subsystem: "com.endlessrumination", category: "<ClassName>")` for all debug logging
+- Stream device logs with: `log stream --predicate 'subsystem == "com.endlessrumination"' --style compact`
+
 ## What NOT to Do
 - Don't build a React/web app
+- Don't push to TestFlight / App Store / Google Play without explicit user permission
 - Don't use UIKit storyboards
 - Don't use KMP/Compose Multiplatform (archived, use native only)
 - Don't hardcode API keys — use environment variables
 - Don't persist free-tier takes to database
 - Don't skip the safety check before generating takes
 - Don't commit .xcodeproj — it's generated by xcodegen and gitignored
-- Don't commit .venv or .env
+- Don't commit .venv, .mlx-venv, .env, data/, or models/
+- Don't use QLoRA (4-bit) for Qwen 3.5 — bf16 LoRA only (Gated DeltaNet architecture is sensitive to quantization during training)
+- Don't install mlx-lm from PyPI (v0.29.1 lacks Qwen 3.5 support) — install from git
+- Don't use `temp=` kwarg with mlx-lm 0.30+ generate — use `sampler=make_sampler(temp=0.7)` from `mlx_lm.sample_utils`
+- Don't forget `enable_thinking=False` for Qwen 3.5 4B — otherwise it wastes ~100 tokens on chain-of-thought
+- Don't use Unsloth's DPOTrainer with Qwen 3.5 — it misidentifies qwen3_5 as a vision model and crashes with `KeyError: 'images'`. Use vanilla transformers + PEFT + TRL instead (see `dpo_train.py` and `experiment_steps.md` step 4)
+- Don't use non-ASCII characters (em dashes, curly quotes, accented names) in LensPrompts.swift — the pruned vocab is missing 128 high-byte characters (0x80-0xFF), causing swift-transformers to crash with `Fatal error: Unexpectedly found nil while unwrapping an Optional value` at `Tokenizer.swift:643`. Use `--` instead of `—`, `Soren` instead of `Søren`, etc.
+- Don't forget the vocab pruning limitation: the optimized model's BPE tokenizer cannot encode non-ASCII characters. User input should be sanitized to ASCII before tokenization. Future fix: re-run `optimize_for_device.py` with byte tokens forced to keep.

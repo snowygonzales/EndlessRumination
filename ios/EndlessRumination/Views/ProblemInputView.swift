@@ -53,45 +53,46 @@ struct ProblemInputView: View {
                     .padding(.horizontal, 24)
                     .padding(.bottom, 12)
 
-                // Text area with word counter
-                ZStack(alignment: .bottomTrailing) {
-                    TextEditor(text: $state.problemText)
-                        .focused($isTextFieldFocused)
-                        .font(.system(size: 16))
-                        .lineSpacing(6)
-                        .foregroundStyle(ERColors.primaryText)
-                        .scrollContentBackground(.hidden)
-                        .padding(16)
-                        .background(ERColors.inputBackground)
-                        .clipShape(RoundedRectangle(cornerRadius: 16))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 16)
-                                .stroke(ERColors.border, lineWidth: 1)
-                        )
-                        .overlay(alignment: .topLeading) {
-                            if appState.problemText.isEmpty {
-                                Text("I can't stop thinking about...")
-                                    .font(.system(size: 16))
-                                    .foregroundStyle(ERColors.dimText)
-                                    .padding(.horizontal, 21)
-                                    .padding(.vertical, 24)
-                                    .allowsHitTesting(false)
-                            }
+                // Text area
+                TextEditor(text: $state.problemText)
+                    .focused($isTextFieldFocused)
+                    .font(.system(size: 16))
+                    .lineSpacing(6)
+                    .foregroundStyle(ERColors.primaryText)
+                    .scrollContentBackground(.hidden)
+                    .padding(16)
+                    .background(ERColors.inputBackground)
+                    .clipShape(RoundedRectangle(cornerRadius: 16))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16)
+                            .stroke(ERColors.border, lineWidth: 1)
+                    )
+                    .overlay(alignment: .topLeading) {
+                        if appState.problemText.isEmpty {
+                            Text("I can't stop thinking about...")
+                                .font(.system(size: 16))
+                                .foregroundStyle(ERColors.dimText)
+                                .padding(.horizontal, 21)
+                                .padding(.vertical, 24)
+                                .allowsHitTesting(false)
                         }
+                    }
+                    .padding(.horizontal, 24)
+                    .padding(.bottom, 6)
+                    .onChange(of: appState.problemText) {
+                        UIImpactFeedbackGenerator(style: .light).impactOccurred(intensity: 0.4)
+                    }
 
-                    // Word counter
-                    Text("\(appState.wordCount) / 20 words")
+                // Word counter (outside text area to prevent overlap)
+                HStack {
+                    Spacer()
+                    Text(wordCountLabel)
                         .font(ERTypography.counter)
                         .foregroundStyle(wordCountColor)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(ERColors.inputBackground)
-                        .clipShape(RoundedRectangle(cornerRadius: 6))
-                        .padding(14)
                         .animation(ERAnimations.wordCounter, value: appState.wordCount)
                 }
-                .padding(.horizontal, 24)
-                .padding(.bottom, 20)
+                .padding(.horizontal, 28)
+                .padding(.bottom, 12)
 
                 // Submit button
                 Button {
@@ -119,9 +120,9 @@ struct ProblemInputView: View {
                 // Disclaimers
                 VStack(spacing: 4) {
                     HStack(spacing: 4) {
-                        Image(systemName: "shield.fill")
+                        Image(systemName: "lock.shield.fill")
                             .font(.system(size: 10))
-                        Text("All content analyzed for safety. Crisis resources provided when needed.")
+                        Text("Your thoughts never leave this device.")
                             .font(ERTypography.caption)
                     }
                     Text("Not a substitute for professional mental health care.")
@@ -138,18 +139,28 @@ struct ProblemInputView: View {
         }
     }
 
+    private var wordCountLabel: String {
+        let wc = appState.wordCount
+        if wc > AppState.maxWords {
+            return "\(wc) / \(AppState.maxWords) words"
+        }
+        return "\(wc) / \(AppState.minWords) words"
+    }
+
     private var wordCountColor: Color {
         let wc = appState.wordCount
-        if wc >= 20 { return ERColors.accentGreen }
+        if wc > AppState.maxWords { return ERColors.accentRed }
+        if wc >= AppState.minWords { return ERColors.accentGreen }
         if wc >= 15 { return ERColors.accentGold }
         return ERColors.dimText
     }
 
     private var buttonLabel: String {
         let wc = appState.wordCount
-        if wc >= 20 { return "See perspectives" }
-        if wc >= 15 { return "Need \(20 - wc) more words" }
-        return "Need at least 20 words"
+        if wc > AppState.maxWords { return "Too many words (\(wc)/\(AppState.maxWords))" }
+        if wc >= AppState.minWords { return "See perspectives" }
+        if wc >= 15 { return "Need \(AppState.minWords - wc) more words" }
+        return "Need at least \(AppState.minWords) words"
     }
 
     private func submit() {
@@ -161,7 +172,8 @@ struct ProblemInputView: View {
             return
         }
 
-        // Client-side safety check
+        // Client-side safety check — runs on both raw and normalized text
+        // to catch Unicode homoglyphs, l33tspeak, and spacing evasion
         guard SafetyService.clientSideCheck(appState.problemText) else {
             appState.showSafetyOverlay = true
             return
@@ -172,38 +184,19 @@ struct ProblemInputView: View {
         isTextFieldFocused = false
 
         Task {
-            // Server-side safety check
-            do {
-                let safe = try await SafetyService.serverSideCheck(appState.problemText)
-                if !safe {
-                    appState.showSafetyOverlay = true
-                    isSubmitting = false
-                    return
-                }
-            } catch {
-                // If safety check fails, proceed (fail-open for UX, safety runs server-side too)
-            }
-
             appState.currentScreen = .loading
             appState.isGenerating = true
             isSubmitting = false
 
-            // Start streaming takes
-            let stream = await APIClient.shared.generateBatch(
+            // Generate takes locally via on-device inference
+            let generator = LocalTakeGenerator(engine: appState.inferenceEngine)
+            await generator.generateTakes(
                 problem: appState.problemText,
-                lensIndices: appState.lensIndicesForRequest,
-                ownedPackIDs: appState.ownedPackProductIDs
-            )
-            do {
-                for try await take in stream {
-                    appState.receiveTake(take)
-                }
-            } catch {
-                // If streaming fails but we have some takes, show them
-                if appState.takes.isEmpty {
-                    appState.currentScreen = .input
-                }
+                lensIndices: appState.lensIndicesForRequest
+            ) { take in
+                appState.receiveTake(take)
             }
+
             appState.isGenerating = false
         }
     }

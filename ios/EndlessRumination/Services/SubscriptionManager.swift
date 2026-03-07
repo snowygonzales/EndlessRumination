@@ -45,7 +45,6 @@ final class SubscriptionManager {
                 await transaction.finish()
                 isProSubscribed = true
                 purchaseState = .purchased
-                Task { await verifyReceiptOnServer(productId: Self.proMonthlyID, transactionId: String(transaction.id), isSubscription: true) }
 
             case .userCancelled:
                 purchaseState = .idle
@@ -75,7 +74,6 @@ final class SubscriptionManager {
                 await transaction.finish()
                 ownedPackIDs.insert(productID)
                 purchaseState = .purchased
-                Task { await verifyReceiptOnServer(productId: productID, transactionId: String(transaction.id), isSubscription: false) }
                 return true
 
             case .userCancelled, .pending:
@@ -157,15 +155,6 @@ final class SubscriptionManager {
                 }
             }
         }
-    }
-
-    private func verifyReceiptOnServer(productId: String, transactionId: String, isSubscription: Bool) async {
-        _ = try? await APIClient.shared.verifyReceipt(
-            platform: "apple",
-            productId: productId,
-            purchaseToken: transactionId,
-            isSubscription: isSubscription
-        )
     }
 
     private func checkVerified(_ result: VerificationResult<Transaction>) throws -> Transaction {

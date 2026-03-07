@@ -39,19 +39,26 @@ struct SafetyOverlayView: View {
                 VStack(spacing: 10) {
                     ForEach(Array(SafetyService.crisisResources.enumerated()), id: \.offset) { _, resource in
                         Button {
-                            if resource.action == "call", let url = URL(string: "tel:\(resource.value)") {
-                                UIApplication.shared.open(url)
-                            } else if resource.action == "text", let url = URL(string: "sms:741741&body=HOME") {
-                                UIApplication.shared.open(url)
-                            }
+                            openCrisisResource(resource)
                         } label: {
-                            VStack(spacing: 2) {
-                                Text("\(resource.name): \(resource.value)")
-                                    .font(.system(size: 13))
+                            HStack(spacing: 6) {
+                                Image(systemName: crisisResourceIcon(resource))
+                                    .font(.system(size: 12))
                                     .foregroundStyle(ERColors.accentCool)
-                                Text(resource.description)
-                                    .font(.system(size: 11))
-                                    .foregroundStyle(ERColors.dimText)
+                                VStack(spacing: 2) {
+                                    if resource.action == "link" {
+                                        Text(resource.name)
+                                            .font(.system(size: 13))
+                                            .foregroundStyle(ERColors.accentCool)
+                                    } else {
+                                        Text("\(resource.name): \(resource.value)")
+                                            .font(.system(size: 13))
+                                            .foregroundStyle(ERColors.accentCool)
+                                    }
+                                    Text(resource.description)
+                                        .font(.system(size: 11))
+                                        .foregroundStyle(ERColors.dimText)
+                                }
                             }
                         }
                     }
@@ -78,6 +85,36 @@ struct SafetyOverlayView: View {
                 Spacer()
             }
             .padding(.horizontal, 40)
+        }
+    }
+
+    private func openCrisisResource(_ resource: SafetyService.CrisisResource) {
+        let urlString: String
+        switch resource.action {
+        case "call":
+            urlString = "tel:\(resource.value)"
+        case "text":
+            // Extract the number from "KEYWORD to NUMBER" format
+            let parts = resource.value.components(separatedBy: " to ")
+            let number = parts.count > 1 ? parts[1] : resource.value
+            let keyword = parts.count > 1 ? parts[0] : ""
+            urlString = "sms:\(number)&body=\(keyword)"
+        case "link":
+            urlString = resource.value
+        default:
+            return
+        }
+        if let url = URL(string: urlString) {
+            UIApplication.shared.open(url)
+        }
+    }
+
+    private func crisisResourceIcon(_ resource: SafetyService.CrisisResource) -> String {
+        switch resource.action {
+        case "call": return "phone.fill"
+        case "text": return "message.fill"
+        case "link": return "globe"
+        default: return "phone.fill"
         }
     }
 }

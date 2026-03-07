@@ -1,106 +1,77 @@
 # Privacy Policy
 
 **Endless Rumination**
-*Last updated: February 27, 2026*
+*Last updated: March 7, 2026*
 
 ## Overview
 
-Endless Rumination ("the App") is a psychology-based perspective tool that generates AI-powered reframes of personal problems. This policy describes how we collect, use, and protect your data.
+Endless Rumination ("the App") is a psychology-based perspective tool that generates AI-powered reframes of personal problems. **All AI processing happens entirely on your device.** This policy describes what data we collect and how we protect your privacy.
+
+## On-Device AI Processing
+
+The App uses an AI model that runs **entirely on your iPhone**. When you submit a problem description:
+
+- The text is processed locally on your device by the on-device AI model
+- **Your problem text is never transmitted to any server**
+- No cloud services, APIs, or third-party AI providers are involved in generating perspectives
+- Generated perspectives exist only in the App's memory during your session
+
+On first use, the App downloads the AI model (~2.1 GB) from HuggingFace over an encrypted HTTPS connection. This is a one-time download. After the model is downloaded, the App works fully offline.
 
 ## Data We Collect
 
-### Problem Text
-When you submit a problem description, the text is sent to our server for processing. This text is:
-- Passed through a safety classification check
-- Sent to Anthropic's Claude API to generate perspectives (see "AI Processing" below)
-- **Not stored permanently** for free-tier users
-- Stored in our database only for Pro subscribers (to enable history features)
+### Data We Do NOT Collect
+- We do **not** collect, transmit, or store your problem text
+- We do **not** have user accounts, passwords, or login credentials
+- We do **not** operate servers or databases that store user content
+- We do **not** collect usage analytics
+- We do **not** use advertising SDKs or tracking frameworks
+- We do **not** access your device's advertising identifier (IDFA)
 
-### Account Information
-If you create an account, we store:
-- Email address
-- Hashed password (we never store plaintext passwords)
-- Subscription status and purchase history (Pro subscription, Voice Pack purchases)
-
-### Automatically Collected
-- Anonymous usage analytics (number of submissions, not content)
-- Device advertising identifiers may be collected by our advertising partner (see "Advertising" below)
-
-## AI Processing
-
-Your problem text is processed by **Anthropic's Claude AI** to generate perspectives from AI personas. By using the App, you consent to your problem text being transmitted to Anthropic's servers for this purpose.
-
-- Anthropic does **not** use API inputs to train their models
-- Problem text is transmitted over encrypted HTTPS connections
-- Anthropic's data handling is governed by their [usage policy](https://www.anthropic.com/policies)
-- You may withdraw consent at any time by discontinuing use of the App
-
-## Advertising
-
-The free tier of the App displays banner advertisements served by **Google AdMob**. The AdMob SDK may collect:
-- Device advertising identifier (IDFA on iOS, Advertising ID on Android)
-- Device information (model, OS version)
-- Ad interaction data (impressions, clicks)
-- IP address (for approximate geographic targeting)
-
-You can limit ad personalization through your device settings:
-- **iOS**: Settings > Privacy & Security > Tracking
-- **Android**: Settings > Privacy > Ads
-
-Pro subscribers do not see advertisements, and no ad-related data is collected for Pro users.
+### Locally Stored Data
+The following data is stored only on your device and never transmitted:
+- App preferences (e.g., onboarding completion, AI consent status)
+- Subscription status (managed by Apple StoreKit)
 
 ## Third-Party Services
 
-### Anthropic Claude API
-See "AI Processing" above.
-
 ### Apple (App Store & StoreKit)
-On iOS, subscription and in-app purchase payments are processed entirely by Apple. We do not receive or store your payment information. Apple's privacy policy applies to payment processing.
+Subscription and in-app purchase payments are processed entirely by Apple via StoreKit. We do not receive or store your payment information. Apple's privacy policy applies to payment processing.
 
-### Google (Google Play Billing)
-On Android, subscription and in-app purchase payments are processed entirely by Google Play. We do not receive or store your payment information. Google's privacy policy applies to payment processing.
-
-### Google AdMob
-See "Advertising" above.
+### HuggingFace
+The AI model is downloaded from HuggingFace's servers on first use. This download does not transmit any personal data. HuggingFace may log standard web server information (IP address, user agent) per their privacy policy.
 
 ## Data Retention
 
-- **Free-tier users**: Problem text is processed in memory and discarded immediately after perspectives are generated. No content is persisted.
-- **Pro subscribers**: Problem history is retained while your account is active. You may request deletion at any time.
-- **Advertising data**: Managed by Google AdMob per their retention policies.
+- **Problem text**: Processed in device memory only. Never persisted to disk or transmitted.
+- **App preferences**: Stored locally on your device until you delete the App.
+- **AI model**: Stored locally on your device (~2.1 GB) until you delete the App.
 
-## Account & Data Deletion
+## Data Deletion
 
-You may delete your account and all associated data:
-- **In-app**: Use the account deletion option in the App's settings
-- **By email**: Contact us at the address below
-- Account deletion removes all stored problem history, subscription records, and personal information within 30 days
+To delete all App data:
+- **Delete the App** from your device. This removes all locally stored data, preferences, and the AI model.
+- **Manage subscriptions**: Settings > [Your Name] > Subscriptions
+- **Contact us**: Email the address below for any data-related requests.
 
 ## Security
 
-- All data is transmitted over HTTPS/TLS
-- Passwords are hashed using industry-standard algorithms
-- Database access is restricted to authenticated services only
-- Our servers are hosted on Railway (United States)
+- The AI model download uses encrypted HTTPS connections
+- All AI processing occurs locally on your device with no network transmission
+- No user content is ever transmitted to or stored on external servers
+- No tracking, analytics, or advertising frameworks are included in the App
 
 ## Children's Privacy
 
-The App is not intended for users under 17 years of age. We do not knowingly collect data from children. If we learn that we have collected personal information from a child under 17, we will delete it promptly.
+The App is not intended for users under 17 years of age. We do not knowingly collect data from children.
 
 ## Your Rights
 
-You have the right to:
-- **Access** your stored data
-- **Delete** your account and all associated data
-- **Export** your data
-- **Withdraw consent** for AI processing at any time
-- **Opt out** of personalized advertising through your device settings
-
 ### For California Residents (CCPA)
-You have the right to know what personal information we collect, request deletion, and opt out of the sale of personal information. We do not sell your personal information.
+You have the right to know what personal information we collect, request deletion, and opt out of the sale of personal information. We do not sell your personal information. We do not collect personal information beyond what is stored locally on your device.
 
 ### For EEA/UK Residents (GDPR)
-Our lawful basis for processing your data is consent (for AI processing) and legitimate interest (for service operation). You have additional rights including data portability and the right to lodge a complaint with your supervisory authority.
+Since no personal data is transmitted to our servers or any third party (other than Apple for payment processing), most GDPR data subject rights are satisfied by design. You have the right to lodge a complaint with your supervisory authority.
 
 ## Changes to This Policy
 
@@ -113,4 +84,4 @@ For privacy questions or data requests:
 
 ---
 
-*Endless Rumination is an independent project. It is not affiliated with Anthropic.*
+*Endless Rumination is an independent project.*
