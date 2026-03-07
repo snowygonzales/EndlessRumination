@@ -2,6 +2,7 @@ import Foundation
 import os.log
 
 #if !targetEnvironment(simulator)
+import MLX
 import MLXLLM
 import MLXLMCommon
 #endif
@@ -59,6 +60,12 @@ final class InferenceEngine {
     func startLoading() {
         guard loadTask == nil else { return }
         log.info("startLoading() called. \(DeviceCapability.info)")
+
+        #if !targetEnvironment(simulator)
+        // Limit Metal buffer cache to reduce memory pressure on 6GB devices
+        GPU.set(cacheLimit: 20 * 1024 * 1024)
+        log.info("GPU cache limit set to 20 MB")
+        #endif
         loadTask = Task { [weak self] in
             do {
                 try await self?.performLoad()
@@ -175,8 +182,12 @@ final class InferenceEngine {
         log.info("Memory before stream: \(DeviceCapability.info)")
 
         // Generate via AsyncStream (preferred non-deprecated API)
+        // maxTokens 200: takes are headline + 3-5 sentences (~120-180 tokens)
+        // kvBits 4: quantize KV cache to reduce memory pressure on 6GB devices
         let parameters = GenerateParameters(
-            maxTokens: 512,
+            maxTokens: 200,
+            kvBits: 4,
+            kvGroupSize: 64,
             temperature: 0.7,
             topP: 0.95
         )

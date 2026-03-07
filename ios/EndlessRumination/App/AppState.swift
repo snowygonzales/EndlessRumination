@@ -77,15 +77,21 @@ final class AppState {
             .count
     }
 
-    var canSubmit: Bool { wordCount >= 20 }
+    static let minWords = 20
+    static let maxWords = 50
+
+    var canSubmit: Bool { wordCount >= Self.minWords && wordCount <= Self.maxWords }
+
+    var isOverLimit: Bool { wordCount > Self.maxWords }
 
     var currentLens: Lens {
         Lens.lens(at: currentTakeIndex)
     }
 
     var currentTake: Take? {
+        // Takes arrive in generation order (randomized) — show in arrival order
         guard currentTakeIndex < takes.count else { return nil }
-        return takes.sorted(by: { $0.lensIndex < $1.lensIndex })[currentTakeIndex]
+        return takes[currentTakeIndex]
     }
 
     var totalTakes: Int {
@@ -106,9 +112,11 @@ final class AppState {
     }
 
     var lensIndicesForRequest: [Int] {
-        let baseIndices = isPro ? Array(0..<20) : Array(0..<Lens.freeLensCount)
+        // Free: pick 5 random from all 20 base lenses each run
+        // Pro: all 20 base lenses, shuffled
+        let baseIndices = isPro ? Array(0..<20).shuffled() : Array(0..<20).shuffled().prefix(Lens.freeLensCount).map { $0 }
         let packIndices = subscriptionManager?.ownedPackVoiceIndices ?? []
-        return baseIndices + packIndices
+        return baseIndices + packIndices.shuffled()
     }
 
     var ownedPackProductIDs: [String] {
@@ -146,10 +154,10 @@ final class AppState {
     }
 
     var hasTakeForCurrentIndex: Bool {
-        takes.contains(where: { $0.lensIndex == currentTakeIndex })
+        currentTakeIndex < takes.count
     }
 
     var nextTakeReady: Bool {
-        takes.contains(where: { $0.lensIndex == currentTakeIndex + 1 })
+        currentTakeIndex + 1 < takes.count
     }
 }

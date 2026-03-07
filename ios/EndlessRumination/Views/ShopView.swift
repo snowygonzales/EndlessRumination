@@ -102,7 +102,7 @@ struct ShopView: View {
                                 .font(ERTypography.serifTitle())
                                 .foregroundStyle(ERColors.titleGradient)
                         }
-                        Text("No ads \u{00B7} Unlimited daily takes \u{00B7} Save history")
+                        Text("All 20 perspectives \u{00B7} Revisit takes \u{00B7} No ads")
                             .font(.system(size: 12))
                             .foregroundStyle(ERColors.secondaryText)
                     }
@@ -134,18 +134,17 @@ struct ShopView: View {
 
     private var freeLensesSection: some View {
         VStack(alignment: .leading, spacing: 14) {
-            HStack {
-                Text("Free Perspectives")
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Perspectives")
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(ERColors.primaryText)
-                Spacer()
-                Text("\(Lens.freeLensCount) included")
+                Text("\(Lens.freeLensCount) randomly chosen from 20 each run")
                     .font(.system(size: 11))
                     .foregroundStyle(ERColors.dimText)
             }
 
             FlowLayout(spacing: 6) {
-                ForEach(Lens.freeLenses) { lens in
+                ForEach(Lens.all) { lens in
                     HStack(spacing: 4) {
                         Text(lens.emoji)
                             .font(.system(size: 11))

@@ -43,6 +43,7 @@ final class LocalTakeGenerator {
             return 0
         }
 
+        let safeProblem = sanitizeToASCII(problem)
         var successCount = 0
 
         for (i, index) in lensIndices.enumerated() {
@@ -53,15 +54,21 @@ final class LocalTakeGenerator {
             do {
                 let raw = try await engine.generate(
                     systemPrompt: systemPrompt,
-                    userMessage: problem
+                    userMessage: safeProblem
                 )
 
                 log.info("[\(i+1)/\(lensIndices.count)] Lens \(index) raw output length=\(raw.count)")
 
                 if let take = parseTake(raw: raw, lensIndex: index) {
-                    log.info("[\(i+1)/\(lensIndices.count)] Lens \(index) parsed OK — headline='\(take.headline)'")
-                    onTakeReady(take)
-                    successCount += 1
+                    // Output safety check — suppress takes with harmful content
+                    let fullText = "\(take.headline) \(take.body)"
+                    if SafetyService.outputSafetyCheck(fullText) {
+                        log.info("[\(i+1)/\(lensIndices.count)] Lens \(index) parsed OK — headline='\(take.headline)'")
+                        onTakeReady(take)
+                        successCount += 1
+                    } else {
+                        log.warning("[\(i+1)/\(lensIndices.count)] Lens \(index) SUPPRESSED by output safety check")
+                    }
                 } else {
                     log.warning("[\(i+1)/\(lensIndices.count)] Lens \(index) parse returned nil — raw: '\(raw.prefix(200))'")
                 }
@@ -76,6 +83,33 @@ final class LocalTakeGenerator {
         log.info("generateTakes() finished — \(successCount)/\(lensIndices.count) succeeded")
         log.info("Memory at end: \(DeviceCapability.info)")
         return successCount
+    }
+
+    // MARK: - Input Sanitization
+
+    /// Replace non-ASCII characters with safe ASCII equivalents.
+    ///
+    /// The pruned BPE vocab is missing 128 high-byte characters (bytes 0x80-0xFF),
+    /// so any non-ASCII input would crash swift-transformers' tokenizer.
+    private func sanitizeToASCII(_ text: String) -> String {
+        var result = text
+        // Common Unicode replacements
+        let replacements: [(String, String)] = [
+            ("\u{2014}", "--"),  // em dash
+            ("\u{2013}", "-"),   // en dash
+            ("\u{2018}", "'"),   // left single quote
+            ("\u{2019}", "'"),   // right single quote
+            ("\u{201C}", "\""),  // left double quote
+            ("\u{201D}", "\""),  // right double quote
+            ("\u{2026}", "..."), // ellipsis
+            ("\u{00A0}", " "),   // non-breaking space
+        ]
+        for (from, to) in replacements {
+            result = result.replacingOccurrences(of: from, with: to)
+        }
+        // Strip any remaining non-ASCII characters
+        result = String(result.unicodeScalars.filter { $0.value < 128 })
+        return result
     }
 
     // MARK: - Output Parsing

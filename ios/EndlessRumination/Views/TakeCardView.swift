@@ -2,13 +2,24 @@ import SwiftUI
 
 struct TakeCardView: View {
     let take: Take
+    @Environment(AppState.self) private var appState
     @State private var showReportConfirmation = false
+    @State private var isReported = false
 
     private var display: (name: String, emoji: String, color: Color, bgColor: Color) {
         Lens.displayInfo(at: take.lensIndex)
     }
 
     var body: some View {
+        if isReported {
+            // Replace flagged take with acknowledgment + crisis resources
+            reportedPlaceholder
+        } else {
+            takeCard
+        }
+    }
+
+    private var takeCard: some View {
         VStack(alignment: .leading, spacing: 16) {
             // Lens badge + Pack badge + Flag
             HStack(spacing: 8) {
@@ -50,12 +61,14 @@ struct TakeCardView: View {
                 }
             }
             .alert("Report Content", isPresented: $showReportConfirmation) {
-                Button("Report", role: .destructive) {
-                    // Content flagged — in a full implementation this would send to backend
+                Button("Report & Hide", role: .destructive) {
+                    withAnimation {
+                        isReported = true
+                    }
                 }
                 Button("Cancel", role: .cancel) {}
             } message: {
-                Text("Flag this AI-generated perspective as inappropriate or harmful?")
+                Text("Flag this AI-generated perspective as inappropriate or harmful? It will be hidden.")
             }
 
             // Headline
@@ -71,5 +84,36 @@ struct TakeCardView: View {
                 .lineSpacing(6)
                 .fontWeight(.light)
         }
+    }
+
+    private var reportedPlaceholder: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "flag.fill")
+                .font(.system(size: 24))
+                .foregroundStyle(ERColors.dimText)
+
+            Text("This perspective has been hidden.")
+                .font(.system(size: 14))
+                .foregroundStyle(ERColors.secondaryText)
+
+            Text("If you're struggling, please reach out:")
+                .font(.system(size: 12))
+                .foregroundStyle(ERColors.dimText)
+
+            VStack(spacing: 10) {
+                ForEach(SafetyService.crisisResources, id: \.name) { resource in
+                    HStack(spacing: 8) {
+                        Image(systemName: resource.action == "call" ? "phone.fill" : "message.fill")
+                            .font(.system(size: 12))
+                            .foregroundStyle(ERColors.accentCool)
+                        Text("\(resource.name): \(resource.value)")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundStyle(ERColors.primaryText)
+                    }
+                }
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 40)
     }
 }

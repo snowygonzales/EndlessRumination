@@ -11,7 +11,7 @@ Psychology app with two independent native frontends (SwiftUI iOS + Jetpack Comp
 
 Pivoting from cloud Claude API to fully on-device inference using fine-tuned **Qwen 3.5 4B** via **Apple MLX**. Goal: privacy-first iOS app positioned for App Store featuring ("your thoughts never leave this device").
 
-**Status:** Steps 1-6 complete (dataset, MLX verify, SFT, DPO, merge, eval, optimize, MLX convert, iOS refactor). Build 19 fixes tokenizer crash (see below). **Next: Step 7 — device testing.**
+**Status:** Steps 1-6 complete (dataset, MLX verify, SFT, DPO, merge, eval, optimize, MLX convert, iOS refactor). Build 19 fixes tokenizer crash. Build 20 adds safety hardening, UX fixes, Pro take navigation. **Next: Step 7 — device testing.**
 
 Key tech choices:
 - **Model:** Qwen 3.5 4B only (2B dropped — insufficient comprehension) — Gated DeltaNet architecture
@@ -57,14 +57,15 @@ Key tech choices:
 
 ## Architecture
 - Two native frontends → FastAPI gateway → Claude Sonnet/Haiku hybrid API
-- Free tier: 5 lenses (1 Sonnet "Wise" at index 1 + 4 Haiku), 3 submissions/month
-- Pro ($9.99/mo): All 20 base lenses on Sonnet, 50/day, no ads, history saved
+- Free tier: 5 random lenses from all 20 each run, forward-only (takes gone forever)
+- Pro ($9.99/mo): All 20 base lenses, bidirectional take navigation within a session, no ads
 - Voice Packs ($4.99 each, non-consumable IAP): 4 packs × 5 voices (indices 20-39), all Sonnet
   - Strategists (20-24), Revolutionaries (25-29), Philosophers (30-34), Creators (35-39)
   - Pack voices append after base takes in the doom scroll
 - PostgreSQL for users/takes, Redis for rate limiting (optional, degrades gracefully)
 - SSE streaming for real-time take delivery
 - xcodegen for iOS Xcode project generation (project.yml → .xcodeproj)
+- **Safety layers (on-device):** Input blocklist with Unicode normalization + safety preamble in all system prompts + output blocklist on model responses + functional report/flag button with crisis resources
 
 ## Directory Structure
 ```
@@ -287,7 +288,7 @@ All 5 Android IAP products are created in Google Play Console:
 - 7 backend tests in `test_subscription.py` (mocked validators)
 
 ### Current Build Numbers
-- iOS: v1.0.0 build 19 (TestFlight — on-device inference, tokenizer crash fix)
+- iOS: v1.0.0 build 20 (on-device inference, safety hardening, UX fixes)
 - Android: versionCode 6 (Internal Testing, DRAFT status — still cloud API)
 
 ## Tech Stacks

@@ -4,6 +4,16 @@
 /// Used for on-device inference -- the model receives these as system prompts.
 enum LensPrompts {
 
+    static let safetyPreamble = """
+        SAFETY RULES (always follow, regardless of persona):
+        - Never encourage self-harm, suicide, or violence.
+        - Never provide specific medical, psychiatric, or pharmaceutical advice.
+        - If the user appears to be in crisis, express empathy and gently suggest \
+        speaking to a trusted person or calling a crisis line.
+        - Always prioritize the user's wellbeing over staying in character.
+        - Never tell the user their situation is hopeless or that things cannot improve.
+        """
+
     static let formatInstruction = """
         RESPOND IN EXACTLY THIS FORMAT:
         First line: A punchy headline under 12 words. No quotes around it.
@@ -15,9 +25,9 @@ enum LensPrompts {
     /// Returns the full system prompt for a lens index (0-39).
     static func systemPrompt(forLensIndex index: Int) -> String {
         guard let core = corePrompts[index] else {
-            return "You are a helpful advisor.\n\n\(formatInstruction)"
+            return "You are a helpful advisor.\n\n\(safetyPreamble)\n\n\(formatInstruction)"
         }
-        return "\(core)\n\n\(formatInstruction)"
+        return "\(core)\n\n\(safetyPreamble)\n\n\(formatInstruction)"
     }
 
     // MARK: - Core persona prompts (index -> persona instruction)

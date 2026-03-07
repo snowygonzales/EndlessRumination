@@ -11,6 +11,12 @@ struct TakesView: View {
         case visible, fadingOut, fadingIn
     }
 
+    /// Direction of the current transition (for animation offset)
+    enum TransitionDirection {
+        case forward, backward
+    }
+    @State private var transitionDirection: TransitionDirection = .forward
+
     var body: some View {
         VStack(spacing: 0) {
             // Header
@@ -26,7 +32,7 @@ struct TakesView: View {
                     waitingIndicator
                 }
 
-                // Gone forever flash
+                // Gone forever flash (free users only)
                 if showGoneForever {
                     goneForeverFlash
                 }
@@ -132,10 +138,17 @@ struct TakesView: View {
                         .foregroundStyle(ERColors.dimText)
                         .modifier(BobModifier())
 
-                    Text("SWIPE UP \u{00B7} FADES FOREVER")
-                        .font(.system(size: 11))
-                        .tracking(2)
-                        .foregroundStyle(ERColors.dimText)
+                    if appState.isPro {
+                        Text("SWIPE TO BROWSE")
+                            .font(.system(size: 11))
+                            .tracking(2)
+                            .foregroundStyle(ERColors.dimText)
+                    } else {
+                        Text("SWIPE UP \u{00B7} FADES FOREVER")
+                            .font(.system(size: 11))
+                            .tracking(2)
+                            .foregroundStyle(ERColors.dimText)
+                    }
                 }
             }
 
@@ -181,8 +194,8 @@ struct TakesView: View {
     private var cardOffset: CGFloat {
         switch fadeState {
         case .visible: return dragOffset
-        case .fadingOut: return -40
-        case .fadingIn: return 40
+        case .fadingOut: return transitionDirection == .forward ? -40 : 40
+        case .fadingIn: return transitionDirection == .forward ? 40 : -40
         }
     }
 
@@ -199,19 +212,27 @@ struct TakesView: View {
     private var swipeGesture: some Gesture {
         DragGesture(minimumDistance: 30, coordinateSpace: .local)
             .onChanged { value in
-                if value.translation.height < 0 {
-                    dragOffset = value.translation.height * 0.3
+                let vertical = value.translation.height
+                if vertical < 0 {
+                    // Swipe up (forward)
+                    dragOffset = vertical * 0.3
+                } else if vertical > 0 && appState.isPro && appState.currentTakeIndex > 0 {
+                    // Swipe down (backward) — Pro only
+                    dragOffset = vertical * 0.3
                 }
             }
             .onEnded { value in
                 dragOffset = 0
-                if value.translation.height < -40 {
+                let vertical = value.translation.height
+                if vertical < -40 {
                     advance()
+                } else if vertical > 40 && appState.isPro && appState.currentTakeIndex > 0 {
+                    goBack()
                 }
             }
     }
 
-    // MARK: - Advance
+    // MARK: - Advance (forward)
 
     private func advance() {
         guard !isBusy else { return }
@@ -226,11 +247,14 @@ struct TakesView: View {
         guard appState.currentTakeIndex < appState.totalTakes - 1 else { return }
 
         isBusy = true
+        transitionDirection = .forward
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
 
-        // Show "gone forever" flash
-        withAnimation(.easeOut(duration: 0.3)) {
-            showGoneForever = true
+        // Show "gone forever" flash only for free users
+        if !appState.isPro {
+            withAnimation(.easeOut(duration: 0.3)) {
+                showGoneForever = true
+            }
         }
 
         // Fade out current card
@@ -249,10 +273,44 @@ struct TakesView: View {
             }
 
             // Hide gone forever text
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.9) {
-                withAnimation {
-                    showGoneForever = false
+            if showGoneForever {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.9) {
+                    withAnimation {
+                        showGoneForever = false
+                    }
                 }
+            }
+
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                isBusy = false
+            }
+        }
+    }
+
+    // MARK: - Go Back (Pro only)
+
+    private func goBack() {
+        guard !isBusy else { return }
+        guard appState.isPro else { return }
+        guard appState.currentTakeIndex > 0 else { return }
+
+        isBusy = true
+        transitionDirection = .backward
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+
+        // Fade out current card
+        withAnimation(ERAnimations.takeTransition) {
+            fadeState = .fadingOut
+        }
+
+        // After fade out, switch to previous take
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            appState.currentTakeIndex -= 1
+            fadeState = .fadingIn
+
+            // Fade in previous card
+            withAnimation(ERAnimations.takeTransition) {
+                fadeState = .visible
             }
 
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {

@@ -25,13 +25,21 @@ struct AIConsentView: View {
                     .padding(.bottom, 12)
 
                 // Description
-                Text("This app uses an **on-device AI model running entirely on your iPhone** to generate perspectives. Your thoughts never leave this device.")
-                    .font(.system(size: 14))
-                    .foregroundStyle(ERColors.secondaryText)
-                    .multilineTextAlignment(.center)
-                    .lineSpacing(4)
-                    .padding(.horizontal, 32)
-                    .padding(.bottom, 20)
+                VStack(spacing: 12) {
+                    Text("This app uses an **on-device AI model running entirely on your iPhone** to generate perspectives. Your thoughts never leave this device.")
+                        .font(.system(size: 14))
+                        .foregroundStyle(ERColors.secondaryText)
+                        .multilineTextAlignment(.center)
+                        .lineSpacing(4)
+
+                    Text("AI-generated perspectives may be inaccurate or unhelpful. This app is not a substitute for professional mental health care.")
+                        .font(.system(size: 12))
+                        .foregroundStyle(ERColors.dimText)
+                        .multilineTextAlignment(.center)
+                        .lineSpacing(3)
+                }
+                .padding(.horizontal, 32)
+                .padding(.bottom, 20)
 
                 // Links
                 VStack(spacing: 8) {
