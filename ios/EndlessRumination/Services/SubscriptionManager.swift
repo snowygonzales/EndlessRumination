@@ -1,4 +1,7 @@
 import StoreKit
+import os
+
+private let logger = Logger(subsystem: "com.endlessrumination", category: "SubscriptionManager")
 
 @MainActor
 @Observable
@@ -102,6 +105,17 @@ final class SubscriptionManager {
             .flatMap(\.voiceIndices)
     }
 
+    #if DEBUG
+    /// Toggle pack ownership for testing without IAP sandbox.
+    func debugTogglePack(_ productID: String) {
+        if ownedPackIDs.contains(productID) {
+            ownedPackIDs.remove(productID)
+        } else {
+            ownedPackIDs.insert(productID)
+        }
+    }
+    #endif
+
     // MARK: - Restore
 
     func restorePurchases() async {
@@ -111,9 +125,25 @@ final class SubscriptionManager {
 
     // MARK: - Private
 
+    /// Locale-formatted pack price fallback derived from the user's locale.
+    /// Used when ASC hasn't returned pack products yet (e.g., missing review screenshots).
+    var fallbackPackPrice: String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .currency
+        formatter.locale = Locale.current
+        return formatter.string(from: 4.99 as NSNumber) ?? "4.99"
+    }
+
+    /// Display price for a pack — real StoreKit price if available, locale-formatted fallback otherwise.
+    func packDisplayPrice(_ productID: String) -> String {
+        packProducts[productID]?.displayPrice ?? fallbackPackPrice
+    }
+
     private func loadProducts() async {
+        logger.info("Fetching \(Self.allProductIDs.count) product IDs: \(Self.allProductIDs.sorted().joined(separator: ", "))")
         do {
             let products = try await Product.products(for: Self.allProductIDs)
+            logger.info("StoreKit returned \(products.count) products: \(products.map(\.id).sorted().joined(separator: ", "))")
             for product in products {
                 if product.id == Self.proMonthlyID {
                     proProduct = product
@@ -121,8 +151,12 @@ final class SubscriptionManager {
                     packProducts[product.id] = product
                 }
             }
+            let missingPacks = Self.packProductIDs.subtracting(Set(packProducts.keys))
+            if !missingPacks.isEmpty {
+                logger.warning("Pack products not returned by StoreKit (likely missing metadata in ASC): \(missingPacks.sorted().joined(separator: ", "))")
+            }
         } catch {
-            // Product fetch failed — user stays on free tier
+            logger.error("Product fetch failed: \(error.localizedDescription)")
         }
         productsLoaded = true
     }

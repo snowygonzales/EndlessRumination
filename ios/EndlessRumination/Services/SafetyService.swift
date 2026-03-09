@@ -48,6 +48,72 @@ enum SafetyService {
         "want to attack", "fantasize about hurting",
         "murder", "stab", "shoot", "strangle",
         "weapon", "gun",
+
+        // Sexual content -- explicit/graphic (not relationship worries)
+        "sex with a child", "sex with a minor", "sex with a kid",
+        "sex with my child", "sex with my kid",
+        "attracted to children", "attracted to kids", "attracted to minors",
+        "child porn", "kiddie porn",
+        "underage sex", "underage girl", "underage boy",
+        "rape", "molest", "grope",
+        "sexual fantasy about", "sexually attracted to",
+        "sex slave", "sex trafficking",
+        "incest",
+        "bestiality",
+        "send nudes", "dick pic", "nude photo",
+        "porn addiction", "addicted to porn",
+        "masturbat",
+        "fetish",
+        "bondage", "bdsm",
+        "erotic", "orgasm",
+        "genitals", "penis", "vagina",
+        "anal sex", "oral sex",
+        "threesome", "orgy",
+        "hooker", "prostitut", "escort service",
+
+        // CBRN / Weapons of mass destruction (NIST, MLCommons S9)
+        "how to make a bomb", "make a bomb", "build a bomb",
+        "pipe bomb", "pressure cooker bomb",
+        "nerve agent", "sarin", "anthrax", "ricin", "cyanide",
+        "dirty bomb", "nuclear weapon", "chemical weapon",
+        "biological weapon", "weaponize", "bioweapon",
+        "explosive", "detonator", "nitroglycerin",
+        "uranium", "plutonium", "enrichment",
+
+        // Terrorism / Extremism (MLCommons S1, Azure, Apple 1.1)
+        "join isis", "join al qaeda", "join the caliphate",
+        "jihad", "holy war", "infidel",
+        "mass shooting", "school shooting", "shooting plan",
+        "manifesto", "race war", "day of the rope",
+        "lone wolf", "terrorist attack", "martyr operation",
+        "radicalize", "recruit for",
+        "white power", "white supremac", "heil hitler",
+        "ethnic cleansing", "genocide",
+
+        // Severe hate speech / Slurs (Apple 1.1.1, MLCommons S10)
+        "nigger", "nigga", "kike", "spic", "chink", "gook",
+        "wetback", "beaner", "raghead", "towelhead", "sand nigger",
+        "faggot", "tranny", "dyke",
+        "subhuman", "vermin", "cockroach",
+        "gas the", "kill all",
+        "death to",
+
+        // Drug manufacturing (Meta, MLCommons S2)
+        "how to make meth", "cook meth", "synthesize",
+        "drug lab", "drug recipe",
+        "how to make fentanyl", "how to make heroin",
+        "how to make cocaine", "how to make lsd",
+        "how to grow", "drug deal",
+
+        // Jailbreak / Prompt injection
+        "ignore previous instructions", "ignore your instructions",
+        "ignore all instructions", "ignore the system prompt",
+        "disregard your programming", "override your rules",
+        "you are now", "pretend you have no",
+        "act as if you have no restrictions",
+        "do anything now", "jailbreak", "dan mode",
+        "developer mode", "no ethical guidelines",
+        "bypass your filters", "ignore your filters",
     ]
 
     // MARK: - Output Blocklist (checked after generation)
@@ -75,6 +141,53 @@ enum SafetyService {
         "hurt them", "attack them", "fight them",
         "make them pay", "get revenge",
         "they deserve to suffer",
+
+        // Model generating sexual content
+        "have sex with", "sleep with them",
+        "seduce", "sexually", "orgasm",
+        "take your clothes off", "get naked",
+        "touch yourself", "pleasure yourself",
+        "send them nudes", "send a nude",
+        "sex worker", "prostitut", "hooker",
+        "rape", "molest", "grope",
+        "erotic", "aroused", "arouses",
+        "genitals", "penis", "vagina",
+        "masturbat",
+        "porn", "bondage", "fetish",
+        "underage", "minor", "child sex",
+
+        // Model claiming professional authority (MLCommons S6)
+        "as your therapist", "as your doctor",
+        "as your psychiatrist", "as your counselor",
+        "my diagnosis is", "i diagnose you",
+        "my professional opinion", "my clinical assessment",
+        "you should take", "i prescribe",
+        "i am a licensed", "i am a certified",
+        "as a medical professional",
+
+        // Parasocial attachment (NIST Human-AI Configuration)
+        "i will always be here for you",
+        "you can always rely on me",
+        "i understand you better than anyone",
+        "i am your best friend",
+        "i love you", "i care about you deeply",
+        "no one understands you like i do",
+        "you dont need anyone else",
+        "i am the only one who",
+
+        // Hate speech in responses (MLCommons S10, Apple 1.1.1)
+        "nigger", "nigga", "kike", "spic", "chink",
+        "faggot", "tranny", "retard",
+        "subhuman", "vermin",
+        "those people are", "they are all",
+        "inferior race", "superior race",
+        "white supremac", "heil hitler",
+        "gas the", "kill all", "death to",
+
+        // CBRN / dangerous instructions in output
+        "how to make a bomb", "how to make poison",
+        "how to make a weapon", "how to synthesize",
+        "ingredients for", "step by step guide to",
     ]
 
     // MARK: - Crisis Resources

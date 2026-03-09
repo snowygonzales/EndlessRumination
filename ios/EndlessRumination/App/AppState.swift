@@ -23,6 +23,7 @@ enum AppScreen {
 final class AppState {
     private static let hasSeenOnboardingKey = "com.endlessrumination.hasSeenOnboarding"
     private static let hasConsentedAIKey = "com.endlessrumination.hasConsentedAI"
+    private static let selectedLensIndicesKey = "com.endlessrumination.selectedLensIndices"
 
     var currentScreen: AppScreen = .splash
     var problemText: String = ""
@@ -33,11 +34,17 @@ final class AppState {
     var showOnboarding: Bool = false
     var showAIConsent: Bool = false
     var isGenerating: Bool = false
+    /// The active generation task -- stored so interrupts don't lose progress.
+    var generationTask: Task<Void, Never>?
     var subscriptionTier: SubscriptionTier = .free
     var subscriptionManager: SubscriptionManager?
     var showPaywall: Bool = false
     var showShop: Bool = false
     var productsLoaded: Bool = false
+
+    /// Pro lens selection — which lenses the user has toggled on.
+    /// `nil` means "all available" (default). Only used for Pro users.
+    var selectedLensIndices: Set<Int>?
 
     /// On-device inference engine (shared across the app lifecycle).
     var inferenceEngine: InferenceEngine = InferenceEngine()
@@ -59,6 +66,7 @@ final class AppState {
     init() {
         let hasSeen = UserDefaults.standard.bool(forKey: Self.hasSeenOnboardingKey)
         showOnboarding = !hasSeen
+        loadSelectedLenses()
     }
 
     func dismissOnboarding() {
@@ -95,9 +103,21 @@ final class AppState {
     }
 
     var totalTakes: Int {
-        let baseTakes = isPro ? 20 : Lens.freeLensCount
-        let packTakes = subscriptionManager?.ownedPackVoiceIndices.count ?? 0
-        return baseTakes + packTakes
+        if isPro {
+            let allAvailable = allAvailableLensIndices
+            if let selected = selectedLensIndices {
+                return selected.intersection(Set(allAvailable)).count
+            }
+            return allAvailable.count
+        }
+        return Lens.freeLensCount
+    }
+
+    /// All lens indices available to the current Pro user (base 20 + owned packs).
+    var allAvailableLensIndices: [Int] {
+        let base = Array(0..<20)
+        let packs = subscriptionManager?.ownedPackVoiceIndices ?? []
+        return base + packs
     }
 
     var isPro: Bool {
@@ -112,11 +132,16 @@ final class AppState {
     }
 
     var lensIndicesForRequest: [Int] {
+        if isPro {
+            let all = allAvailableLensIndices
+            if let selected = selectedLensIndices {
+                // Only include selected lenses that are still available
+                return all.filter { selected.contains($0) }.shuffled()
+            }
+            return all.shuffled()
+        }
         // Free: pick 5 random from all 20 base lenses each run
-        // Pro: all 20 base lenses, shuffled
-        let baseIndices = isPro ? Array(0..<20).shuffled() : Array(0..<20).shuffled().prefix(Lens.freeLensCount).map { $0 }
-        let packIndices = subscriptionManager?.ownedPackVoiceIndices ?? []
-        return baseIndices + packIndices.shuffled()
+        return Array(0..<20).shuffled().prefix(Lens.freeLensCount).map { $0 }
     }
 
     var ownedPackProductIDs: [String] {
@@ -129,7 +154,71 @@ final class AppState {
     }
     #endif
 
+    // MARK: - Lens Selection Persistence
+
+    func saveSelectedLenses() {
+        if let selected = selectedLensIndices {
+            UserDefaults.standard.set(Array(selected), forKey: Self.selectedLensIndicesKey)
+        } else {
+            UserDefaults.standard.removeObject(forKey: Self.selectedLensIndicesKey)
+        }
+    }
+
+    private func loadSelectedLenses() {
+        if let saved = UserDefaults.standard.array(forKey: Self.selectedLensIndicesKey) as? [Int] {
+            selectedLensIndices = Set(saved)
+        }
+    }
+
+    func toggleLens(_ index: Int) {
+        var current = selectedLensIndices ?? Set(allAvailableLensIndices)
+
+        if current.contains(index) {
+            // Don't allow deselecting the last lens
+            if current.count > 1 {
+                current.remove(index)
+            }
+        } else {
+            current.insert(index)
+        }
+
+        selectedLensIndices = current
+        saveSelectedLenses()
+    }
+
+    func selectAllLenses(in indices: [Int]) {
+        var current = selectedLensIndices ?? Set(allAvailableLensIndices)
+        for i in indices { current.insert(i) }
+        selectedLensIndices = current
+        saveSelectedLenses()
+    }
+
+    func clearLenses(in indices: [Int], keepMinimum: Bool = true) {
+        var current = selectedLensIndices ?? Set(allAvailableLensIndices)
+        for i in indices { current.remove(i) }
+        // Ensure at least 1 lens remains
+        if current.isEmpty, let first = allAvailableLensIndices.first {
+            current.insert(first)
+        }
+        selectedLensIndices = current
+        saveSelectedLenses()
+    }
+
+    func isLensSelected(_ index: Int) -> Bool {
+        guard let selected = selectedLensIndices else { return true }
+        return selected.contains(index)
+    }
+
+    var selectedLensCount: Int {
+        if let selected = selectedLensIndices {
+            return selected.intersection(Set(allAvailableLensIndices)).count
+        }
+        return allAvailableLensIndices.count
+    }
+
     func reset() {
+        generationTask?.cancel()
+        generationTask = nil
         problemText = ""
         takes = []
         currentTakeIndex = 0
@@ -140,6 +229,16 @@ final class AppState {
 
     func navigateToInput() {
         reset()
+        currentScreen = .input
+    }
+
+    /// Return to input screen without clearing problem text (for retry after interrupt).
+    func returnToInputForRetry() {
+        generationTask?.cancel()
+        generationTask = nil
+        takes = []
+        currentTakeIndex = 0
+        isGenerating = false
         currentScreen = .input
     }
 

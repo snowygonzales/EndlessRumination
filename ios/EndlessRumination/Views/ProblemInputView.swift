@@ -4,6 +4,14 @@ struct ProblemInputView: View {
     @Environment(AppState.self) private var appState
     @FocusState private var isTextFieldFocused: Bool
     @State private var isSubmitting = false
+    @State private var cooldownInfo: UsageLimiter.CooldownInfo?
+    @State private var cooldownTimer: Timer?
+    @State private var freeLimitHit: FreeLimitType?
+    @State private var showLensPicker = false
+
+    enum FreeLimitType {
+        case daily, monthly
+    }
 
     var body: some View {
         @Bindable var state = appState
@@ -12,9 +20,24 @@ struct ProblemInputView: View {
             VStack(spacing: 0) {
                 // Header
                 HStack {
-                    Text("What's on your mind?")
-                        .font(ERTypography.serifTitle())
-                        .foregroundStyle(ERColors.primaryText)
+                    HStack(spacing: 8) {
+                        Text("What's on your mind?")
+                            .font(ERTypography.serifTitle())
+                            .foregroundStyle(appState.isPro ? ERColors.accentGold : ERColors.primaryText)
+                            .animation(.easeInOut(duration: 0.3), value: appState.isPro)
+
+                        if appState.isPro {
+                            Text("PRO")
+                                .font(.system(size: 9, weight: .black))
+                                .tracking(1.5)
+                                .foregroundStyle(ERColors.background)
+                                .padding(.horizontal, 7)
+                                .padding(.vertical, 3)
+                                .background(ERColors.proGradient)
+                                .clipShape(Capsule())
+                                .transition(.scale.combined(with: .opacity))
+                        }
+                    }
 
                     Spacer()
 
@@ -92,7 +115,81 @@ struct ProblemInputView: View {
                         .animation(ERAnimations.wordCounter, value: appState.wordCount)
                 }
                 .padding(.horizontal, 28)
-                .padding(.bottom, 12)
+                .padding(.bottom, 8)
+
+                // Pro lens picker (collapses when keyboard appears)
+                if appState.isPro && !isTextFieldFocused {
+                    VStack(spacing: 0) {
+                        Button {
+                            withAnimation(.spring(duration: 0.3)) {
+                                showLensPicker.toggle()
+                            }
+                        } label: {
+                            HStack(spacing: 6) {
+                                Image(systemName: "slider.horizontal.3")
+                                    .font(.system(size: 11))
+                                Text("Perspectives (\(appState.selectedLensCount)/\(appState.allAvailableLensIndices.count))")
+                                    .font(.system(size: 12))
+                                Spacer()
+                                Image(systemName: showLensPicker ? "chevron.up" : "chevron.down")
+                                    .font(.system(size: 10, weight: .semibold))
+                            }
+                            .foregroundStyle(ERColors.secondaryText)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 10)
+                            .background(ERColors.inputBackground)
+                            .clipShape(RoundedRectangle(cornerRadius: 10))
+                        }
+
+                        if showLensPicker {
+                            ScrollView {
+                                LensPickerView()
+                                    .padding(.horizontal, 4)
+                            }
+                            .frame(maxHeight: 200)
+                            .transition(.opacity.combined(with: .move(edge: .top)))
+                        }
+                    }
+                    .padding(.horizontal, 24)
+                    .padding(.bottom, 8)
+                }
+
+                // Burst cooldown banner
+                if let info = cooldownInfo {
+                    limitBanner(
+                        icon: "flame.fill",
+                        iconColor: ERColors.accentRed,
+                        title: "Take a breather",
+                        message: "You've submitted a lot in a short time. New submissions available in \(info.displayText).",
+                        borderColor: ERColors.accentRed
+                    )
+                }
+
+                // Free-tier limit banner
+                if let limitType = freeLimitHit {
+                    limitBanner(
+                        icon: "hourglass",
+                        iconColor: ERColors.accentGold,
+                        title: limitType == .daily ? "Daily limit reached" : "Monthly limit reached",
+                        message: limitType == .daily
+                            ? "Free accounts get \(UsageLimiter.freeDailyLimit) submissions per day. Come back tomorrow, or go Pro for unlimited."
+                            : "Free accounts get \(UsageLimiter.freeMonthlyLimit) submissions per month. Go Pro for unlimited.",
+                        borderColor: ERColors.accentGold,
+                        showProButton: true
+                    )
+                }
+
+                // Free usage counter (when not at limit)
+                if !appState.isPro && freeLimitHit == nil && cooldownInfo == nil {
+                    HStack(spacing: 4) {
+                        Image(systemName: "circle.grid.2x1.fill")
+                            .font(.system(size: 8))
+                        Text("\(UsageLimiter.freeDailyRemaining)/\(UsageLimiter.freeDailyLimit) today  \u{00B7}  \(UsageLimiter.freeMonthlyRemaining)/\(UsageLimiter.freeMonthlyLimit) this month")
+                            .font(.system(size: 11))
+                    }
+                    .foregroundStyle(ERColors.dimText)
+                    .padding(.bottom, 4)
+                }
 
                 // Submit button
                 Button {
@@ -109,11 +206,11 @@ struct ProblemInputView: View {
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 18)
-                    .foregroundStyle(appState.canSubmit ? .white : ERColors.dimText)
-                    .background(appState.canSubmit ? AnyShapeStyle(ERColors.warmGradient) : AnyShapeStyle(ERColors.inputBackground))
+                    .foregroundStyle(submitEnabled ? .white : ERColors.dimText)
+                    .background(submitEnabled ? AnyShapeStyle(ERColors.warmGradient) : AnyShapeStyle(ERColors.inputBackground))
                     .clipShape(RoundedRectangle(cornerRadius: 14))
                 }
-                .disabled(!appState.canSubmit || isSubmitting)
+                .disabled(!submitEnabled || isSubmitting)
                 .padding(.horizontal, 24)
                 .padding(.bottom, 16)
 
@@ -137,6 +234,12 @@ struct ProblemInputView: View {
                 SafetyOverlayView()
             }
         }
+        .onAppear {
+            refreshLimits()
+        }
+        .onChange(of: appState.isPro) {
+            refreshLimits()
+        }
     }
 
     private var wordCountLabel: String {
@@ -155,7 +258,13 @@ struct ProblemInputView: View {
         return ERColors.dimText
     }
 
+    private var submitEnabled: Bool {
+        appState.canSubmit && cooldownInfo == nil && freeLimitHit == nil
+    }
+
     private var buttonLabel: String {
+        if cooldownInfo != nil { return "Cooling down..." }
+        if freeLimitHit != nil { return "Limit reached" }
         let wc = appState.wordCount
         if wc > AppState.maxWords { return "Too many words (\(wc)/\(AppState.maxWords))" }
         if wc >= AppState.minWords { return "See perspectives" }
@@ -172,7 +281,26 @@ struct ProblemInputView: View {
             return
         }
 
-        // Client-side safety check — runs on both raw and normalized text
+        // Rate limit + free-tier check
+        switch UsageLimiter.checkLimit(isPro: appState.isPro) {
+        case .allowed:
+            break
+        case .burstCooldown(let info):
+            cooldownInfo = info
+            startCooldownTimer()
+            UINotificationFeedbackGenerator().notificationOccurred(.warning)
+            return
+        case .dailyLimitReached:
+            freeLimitHit = .daily
+            UINotificationFeedbackGenerator().notificationOccurred(.warning)
+            return
+        case .monthlyLimitReached:
+            freeLimitHit = .monthly
+            UINotificationFeedbackGenerator().notificationOccurred(.warning)
+            return
+        }
+
+        // Client-side safety check -- runs on both raw and normalized text
         // to catch Unicode homoglyphs, l33tspeak, and spacing evasion
         guard SafetyService.clientSideCheck(appState.problemText) else {
             appState.showSafetyOverlay = true
@@ -183,12 +311,15 @@ struct ProblemInputView: View {
         isSubmitting = true
         isTextFieldFocused = false
 
-        Task {
-            appState.currentScreen = .loading
-            appState.isGenerating = true
-            isSubmitting = false
+        // Record this submission for rate limiting
+        UsageLimiter.recordSubmission()
 
-            // Generate takes locally via on-device inference
+        appState.currentScreen = .loading
+        appState.isGenerating = true
+        isSubmitting = false
+
+        // Store the task so it survives view rebuilds and app interrupts
+        appState.generationTask = Task {
             let generator = LocalTakeGenerator(engine: appState.inferenceEngine)
             await generator.generateTakes(
                 problem: appState.problemText,
@@ -198,6 +329,93 @@ struct ProblemInputView: View {
             }
 
             appState.isGenerating = false
+            appState.generationTask = nil
+        }
+    }
+
+    // MARK: - Limit Banner
+
+    private func limitBanner(
+        icon: String,
+        iconColor: Color,
+        title: String,
+        message: String,
+        borderColor: Color,
+        showProButton: Bool = false
+    ) -> some View {
+        VStack(spacing: 8) {
+            HStack(spacing: 6) {
+                Image(systemName: icon)
+                    .foregroundStyle(iconColor)
+                Text(title)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(ERColors.primaryText)
+            }
+            Text(message)
+                .font(.system(size: 12))
+                .foregroundStyle(ERColors.secondaryText)
+                .multilineTextAlignment(.center)
+
+            if showProButton {
+                Button {
+                    appState.showPaywall = true
+                } label: {
+                    Text("Go Pro -- Unlimited")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 8)
+                        .background(ERColors.proGradient)
+                        .clipShape(Capsule())
+                }
+                .padding(.top, 2)
+            }
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity)
+        .background(ERColors.inputBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(borderColor.opacity(0.3), lineWidth: 1)
+        )
+        .padding(.horizontal, 24)
+        .padding(.bottom, 8)
+    }
+
+    // MARK: - Cooldown Timer
+
+    private func startCooldownTimer() {
+        cooldownTimer?.invalidate()
+        cooldownTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
+            switch UsageLimiter.checkLimit(isPro: appState.isPro) {
+            case .burstCooldown(let info):
+                cooldownInfo = info
+            default:
+                cooldownInfo = nil
+                cooldownTimer?.invalidate()
+                cooldownTimer = nil
+            }
+        }
+    }
+
+    // MARK: - Refresh Limits
+
+    private func refreshLimits() {
+        switch UsageLimiter.checkLimit(isPro: appState.isPro) {
+        case .burstCooldown(let info):
+            cooldownInfo = info
+            freeLimitHit = nil
+            startCooldownTimer()
+        case .dailyLimitReached:
+            cooldownInfo = nil
+            freeLimitHit = .daily
+        case .monthlyLimitReached:
+            cooldownInfo = nil
+            freeLimitHit = .monthly
+        case .allowed:
+            cooldownInfo = nil
+            freeLimitHit = nil
         }
     }
 }

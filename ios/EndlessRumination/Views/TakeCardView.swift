@@ -71,18 +71,35 @@ struct TakeCardView: View {
                 Text("Flag this AI-generated perspective as inappropriate or harmful? It will be hidden.")
             }
 
-            // Headline
-            Text(take.headline)
-                .font(ERTypography.serifHeadline())
-                .foregroundStyle(ERColors.primaryText)
-                .lineSpacing(4)
+            // Headline (Pro: selectable for copy-paste)
+            if appState.isPro {
+                Text(take.headline)
+                    .font(ERTypography.serifHeadline())
+                    .foregroundStyle(ERColors.primaryText)
+                    .lineSpacing(4)
+                    .textSelection(.enabled)
+            } else {
+                Text(take.headline)
+                    .font(ERTypography.serifHeadline())
+                    .foregroundStyle(ERColors.primaryText)
+                    .lineSpacing(4)
+            }
 
-            // Body
-            Text(take.body)
-                .font(ERTypography.body)
-                .foregroundStyle(ERColors.secondaryText)
-                .lineSpacing(6)
-                .fontWeight(.light)
+            // Body (Pro: selectable for copy-paste)
+            if appState.isPro {
+                Text(take.body)
+                    .font(ERTypography.body)
+                    .foregroundStyle(ERColors.secondaryText)
+                    .lineSpacing(6)
+                    .fontWeight(.light)
+                    .textSelection(.enabled)
+            } else {
+                Text(take.body)
+                    .font(ERTypography.body)
+                    .foregroundStyle(ERColors.secondaryText)
+                    .lineSpacing(6)
+                    .fontWeight(.light)
+            }
         }
     }
 

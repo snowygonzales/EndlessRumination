@@ -45,8 +45,9 @@ struct ProUpgradeView: View {
 
                 // Benefits
                 VStack(alignment: .leading, spacing: 20) {
+                    benefitRow(icon: "infinity", text: "Unlimited submissions, every day")
                     benefitRow(icon: "sparkles", text: "All 20 perspectives on every problem")
-                    benefitRow(icon: "brain.head.profile", text: "Premium AI for deeper, wiser takes")
+                    benefitRow(icon: "slider.horizontal.3", text: "Choose which perspectives to hear")
                     benefitRow(icon: "arrow.up.arrow.down", text: "Revisit takes -- swipe back anytime")
                 }
                 .padding(.horizontal, 32)

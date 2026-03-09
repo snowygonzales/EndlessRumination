@@ -11,7 +11,7 @@ Psychology app with two independent native frontends (SwiftUI iOS + Jetpack Comp
 
 Pivoting from cloud Claude API to fully on-device inference using fine-tuned **Qwen 3.5 4B** via **Apple MLX**. Goal: privacy-first iOS app positioned for App Store featuring ("your thoughts never leave this device").
 
-**Status:** Steps 1-6 complete (dataset, MLX verify, SFT, DPO, merge, eval, optimize, MLX convert, iOS refactor). Build 19 fixes tokenizer crash. Build 20 adds safety hardening, UX fixes, Pro take navigation. **Next: Step 7 — device testing.**
+**Status:** Steps 1-6 complete (dataset, MLX verify, SFT, DPO, merge, eval, optimize, MLX convert, iOS refactor). Build 24 is feature-complete for initial release: expanded safety blocklist, rate limiting, Pro lens picker, interrupt recovery, locale-aware pricing, Pro text selection. **Next: Step 7 — device testing.**
 
 Key tech choices:
 - **Model:** Qwen 3.5 4B only (2B dropped — insufficient comprehension) — Gated DeltaNet architecture
@@ -65,7 +65,10 @@ Key tech choices:
 - PostgreSQL for users/takes, Redis for rate limiting (optional, degrades gracefully)
 - SSE streaming for real-time take delivery
 - xcodegen for iOS Xcode project generation (project.yml → .xcodeproj)
-- **Safety layers (on-device):** Input blocklist with Unicode normalization + safety preamble in all system prompts + output blocklist on model responses + functional report/flag button with crisis resources
+- **Safety layers (on-device):** Comprehensive input blocklist (self-harm, violence, sexual, CBRN, terrorism, hate speech, drugs) with Unicode normalization + safety preamble in all system prompts + output blocklist on model responses + functional report/flag button with crisis resources
+- **Rate limiting (on-device):** Anti-abuse burst limiter (8/30min + 15min cooldown, all users) + free-tier caps (2/day, 10/month) via `UsageLimiter`
+- **Pro lens picker:** Pro users can toggle which perspectives are active before submission; persisted to UserDefaults
+- **Interrupt recovery:** Generation task stored on AppState; scenePhase monitoring detects return from background; LoadingView shows recovery (partial takes) or failed (retry) UI
 
 ## Directory Structure
 ```
@@ -128,14 +131,16 @@ EndlessRumination/
 ### iOS (SwiftUI)
 - `ios/project.yml` — xcodegen project definition (SPM packages, build settings, Info.plist)
 - `ios/EndlessRumination/App/EndlessRuminationApp.swift` — App entry point, GAD init, ATT prompt, AI consent overlay
-- `ios/EndlessRumination/App/AppState.swift` — @Observable state management, AI consent persistence
+- `ios/EndlessRumination/App/AppState.swift` — @Observable state management, AI consent persistence, Pro lens selection, interrupt recovery
 - `ios/EndlessRumination/Services/InferenceEngine.swift` — On-device MLX LLM inference (model download, loading, generation)
 - `ios/EndlessRumination/Services/LocalTakeGenerator.swift` — Sequential per-lens take generation using InferenceEngine
 - `ios/EndlessRumination/Services/DeviceCapability.swift` — RAM/memory checks for model compatibility
 - `ios/EndlessRumination/Services/SubscriptionManager.swift` — StoreKit 2 billing, receipt verification
-- `ios/EndlessRumination/Services/SafetyService.swift` — Client blocklist safety check
+- `ios/EndlessRumination/Services/SafetyService.swift` — Comprehensive client blocklist (self-harm, violence, sexual, CBRN, terrorism, hate speech, drugs)
+- `ios/EndlessRumination/Services/UsageLimiter.swift` — Rate limiting: anti-abuse burst (8/30min) + free-tier caps (2/day, 10/month)
 - `ios/EndlessRumination/Models/` — Take, Lens, VoicePack, LensPrompts
-- `ios/EndlessRumination/Views/` — All screens + AdBannerView, AIConsentView, OnboardingView
+- `ios/EndlessRumination/Views/LensPickerView.swift` — Pro toggleable capsule grid for lens selection with per-section controls
+- `ios/EndlessRumination/Views/` — All screens + AIConsentView, OnboardingView, LoadingView (with interrupt recovery)
 - `ios/EndlessRumination/Theme/` — ERColors, ERTypography, ERAnimations
 
 ### Android (Jetpack Compose)
@@ -261,6 +266,8 @@ All 5 Android IAP products are created in Google Play Console:
 - `Transaction.currentEntitlements` on launch (no Apple ID prompt)
 - `verifyReceiptOnServer()` called after each purchase (background, non-blocking)
 - Restore purchases button in ShopView
+- **Voice pack pricing:** StoreKit `Product.products(for:)` only returns non-consumable products after ASC metadata is complete (review screenshots required). Locale-aware fallback pricing via `NumberFormatter` + `packDisplayPrice()` formats $4.99 equivalent in user's local currency (e.g., RON) when StoreKit products aren't available yet.
+- **StoreKit diagnostic logging:** `os.log` in `loadProducts()` reports product counts, missing packs
 
 ### Android Billing (Google Play Billing v7)
 - `BillingService` — standalone class wrapping `BillingClient`, calls `onReceiptReady` after purchase
@@ -288,7 +295,7 @@ All 5 Android IAP products are created in Google Play Console:
 - 7 backend tests in `test_subscription.py` (mocked validators)
 
 ### Current Build Numbers
-- iOS: v1.0.0 build 20 (on-device inference, safety hardening, UX fixes)
+- iOS: v1.0.0 build 24 (feature-complete: on-device inference, expanded safety, rate limiting, Pro lens picker, interrupt recovery, locale pricing, Pro text selection)
 - Android: versionCode 6 (Internal Testing, DRAFT status — still cloud API)
 
 ## Tech Stacks
@@ -318,7 +325,7 @@ All code-level app store compliance items are implemented:
 - **ATT prompt** — iOS: `ATTrackingManager.requestTrackingAuthorization` on app become active
 - **AD_ID permission** — Android: `com.google.android.gms.permission.AD_ID` in manifest
 - **Subscription terms** — Full auto-renewal/cancellation disclosure on paywall + Privacy Policy/ToS links
-- **Account deletion** — In-app delete option in Shop → opens mailto: flow
+- **Account deletion** — Removed from on-device version (no backend account to delete); cloud version had mailto: flow
 - **Privacy Policy** — Accurate AdMob, AI processing, GDPR/CCPA disclosures (`docs/privacy-policy.md`)
 - **Terms of Service** — AI content disclaimer, subscription terms, liability limits (`docs/terms-of-service.md`)
 - **Remaining manual tasks** — See `docs/release_todo.md`
@@ -347,3 +354,5 @@ All code-level app store compliance items are implemented:
 - Don't use Unsloth's DPOTrainer with Qwen 3.5 — it misidentifies qwen3_5 as a vision model and crashes with `KeyError: 'images'`. Use vanilla transformers + PEFT + TRL instead (see `dpo_train.py` and `experiment_steps.md` step 4)
 - Don't use non-ASCII characters (em dashes, curly quotes, accented names) in LensPrompts.swift — the pruned vocab is missing 128 high-byte characters (0x80-0xFF), causing swift-transformers to crash with `Fatal error: Unexpectedly found nil while unwrapping an Optional value` at `Tokenizer.swift:643`. Use `--` instead of `—`, `Soren` instead of `Søren`, etc.
 - Don't forget the vocab pruning limitation: the optimized model's BPE tokenizer cannot encode non-ASCII characters. User input should be sanitized to ASCII before tokenization. Future fix: re-run `optimize_for_device.py` with byte tokens forced to keep.
+- Don't use ternary with `.textSelection()` — `.enabled` returns `EnabledTextSelectability` and `.disabled` returns `DisabledTextSelectability` (different types). Use conditional `if/else` branches instead.
+- Don't hardcode voice pack prices (e.g., `"$4.99"`) — use `subscriptionManager.packDisplayPrice()` for locale-aware formatting

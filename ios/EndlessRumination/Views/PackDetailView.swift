@@ -9,7 +9,7 @@ struct PackDetailView: View {
     }
 
     private var priceText: String {
-        subscriptionManager.packProducts[pack.productID]?.displayPrice ?? "$4.99"
+        subscriptionManager.packDisplayPrice(pack.productID)
     }
 
     var body: some View {

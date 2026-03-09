@@ -6,7 +6,6 @@ struct ShopView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var selectedPack: VoicePack?
     @State private var isRestoring = false
-    @State private var showDeleteConfirmation = false
 
     var body: some View {
         NavigationStack {
@@ -52,18 +51,6 @@ struct ShopView: View {
                     }
                     .padding(.horizontal, 24)
                     .padding(.top, 12)
-                }
-                .alert("Delete Account", isPresented: $showDeleteConfirmation) {
-                    Button("Delete", role: .destructive) {
-                        // Send account deletion request
-                        // In a full implementation, call API to delete account
-                        if let url = URL(string: "mailto:sefiroth@gmail.com?subject=Delete%20My%20Account&body=Please%20delete%20my%20Endless%20Rumination%20account%20and%20all%20associated%20data.") {
-                            UIApplication.shared.open(url)
-                        }
-                    }
-                    Button("Cancel", role: .cancel) {}
-                } message: {
-                    Text("This will permanently delete your account and all associated data. This action cannot be undone.")
                 }
             }
             .navigationBarTitleDisplayMode(.inline)
@@ -151,7 +138,7 @@ struct ShopView: View {
                 Text("Perspectives")
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(ERColors.primaryText)
-                Text("\(Lens.freeLensCount) randomly chosen from 20 each run")
+                Text("\(Lens.freeLensCount) random from 20  \u{00B7}  \(UsageLimiter.freeDailyLimit)/day  \u{00B7}  \(UsageLimiter.freeMonthlyLimit)/month")
                     .font(.system(size: 11))
                     .foregroundStyle(ERColors.dimText)
             }
@@ -183,7 +170,17 @@ struct ShopView: View {
                 .foregroundStyle(ERColors.primaryText)
 
             ForEach(VoicePack.all) { pack in
-                PackCardView(pack: pack, isOwned: subscriptionManager.isPackOwned(pack.productID), price: subscriptionManager.packProducts[pack.productID]?.displayPrice ?? "$4.99") {
+                PackCardView(pack: pack, isOwned: subscriptionManager.isPackOwned(pack.productID), price: subscriptionManager.packDisplayPrice(pack.productID)) {
+                    #if DEBUG
+                    if appState.subscriptionTier == .pro {
+                        // Cheat mode: tap to toggle pack ownership
+                        subscriptionManager.debugTogglePack(pack.productID)
+                        UINotificationFeedbackGenerator().notificationOccurred(
+                            subscriptionManager.isPackOwned(pack.productID) ? .success : .warning
+                        )
+                        return
+                    }
+                    #endif
                     selectedPack = pack
                 }
             }
@@ -218,15 +215,6 @@ struct ShopView: View {
             }
             .font(.system(size: 12))
             .foregroundStyle(ERColors.accentCool)
-
-            // Delete account
-            Button {
-                showDeleteConfirmation = true
-            } label: {
-                Text("Delete Account")
-                    .font(.system(size: 12))
-                    .foregroundStyle(ERColors.accentRed)
-            }
 
             Text("Not a substitute for professional mental health care.")
                 .font(.system(size: 10))
@@ -264,7 +252,7 @@ struct ShopView: View {
 private struct PackCardView: View {
     let pack: VoicePack
     let isOwned: Bool
-    var price: String = "$4.99"
+    var price: String
     let onTap: () -> Void
 
     var body: some View {
