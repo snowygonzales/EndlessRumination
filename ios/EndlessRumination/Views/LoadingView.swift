@@ -123,14 +123,22 @@ struct LoadingView: View {
                 .font(.system(size: 36))
                 .foregroundStyle(ERColors.accentGold)
 
-            Text("Generation interrupted")
+            Text("Something went wrong")
                 .font(.system(size: 16, weight: .semibold))
                 .foregroundStyle(ERColors.primaryText)
 
-            Text("No perspectives were generated.\nYour problem text is still saved.")
-                .font(.system(size: 13))
-                .foregroundStyle(ERColors.secondaryText)
-                .multilineTextAlignment(.center)
+            if let loadErr = appState.inferenceEngine.loadError {
+                Text(loadErr)
+                    .font(.system(size: 12))
+                    .foregroundStyle(ERColors.dimText)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 24)
+            } else {
+                Text("No perspectives were generated.\nYour problem text is still saved.")
+                    .font(.system(size: 13))
+                    .foregroundStyle(ERColors.secondaryText)
+                    .multilineTextAlignment(.center)
+            }
 
             Button {
                 appState.returnToInputForRetry()

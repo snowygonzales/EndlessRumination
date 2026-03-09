@@ -11,7 +11,7 @@ Psychology app with two independent native frontends (SwiftUI iOS + Jetpack Comp
 
 Pivoting from cloud Claude API to fully on-device inference using fine-tuned **Qwen 3.5 4B** via **Apple MLX**. Goal: privacy-first iOS app positioned for App Store featuring ("your thoughts never leave this device").
 
-**Status:** Steps 1-6 complete (dataset, MLX verify, SFT, DPO, merge, eval, optimize, MLX convert, iOS refactor). Build 24 is feature-complete for initial release: expanded safety blocklist, rate limiting, Pro lens picker, interrupt recovery, locale-aware pricing, Pro text selection. **Next: Step 7 — device testing.**
+**Status:** Steps 1-6 complete (dataset, MLX verify, SFT, DPO, merge, eval, optimize, MLX convert, iOS refactor). Build 25 adds "3 Extra Perspectives" consumable IAP ($0.99), "Copy text" Pro benefit label, and App Store screenshots. **Next: Step 7 — device testing.**
 
 Key tech choices:
 - **Model:** Qwen 3.5 4B only (2B dropped — insufficient comprehension) — Gated DeltaNet architecture
@@ -78,6 +78,7 @@ EndlessRumination/
 ├── android/                    # Jetpack Compose native Android app
 ├── scripts/
 │   ├── create_asc_products.py  # IAP product creation (App Store Connect)
+│   ├── create_extra_takes_product.py  # Consumable IAP creation (App Store Connect)
 │   ├── create_play_products.py # IAP product creation (Google Play)
 │   ├── distillation/           # Dataset generation pipeline (Mac, steps 1.1-1.6)
 │   ├── training/               # Fine-tuning scripts (PC/WSL2, steps 3-4)
@@ -172,6 +173,7 @@ EndlessRumination/
 
 ### Scripts
 - `scripts/create_asc_products.py` — Creates/updates all IAP products in App Store Connect via REST API (JWT auth, idempotent)
+- `scripts/create_extra_takes_product.py` — Creates the "3 Extra Perspectives" consumable IAP ($0.99) in App Store Connect
 - `scripts/create_play_products.py` — Creates subscription in Google Play via API (voice packs require Play Console UI)
 
 ### Distillation Scripts (on-device experiment, Mac)
@@ -229,7 +231,7 @@ Google Play Internal Testing is the Android equivalent of TestFlight. Uses `grad
 ## Monetization (IAP + Ads + Backend Validation)
 
 ### IAP Product Setup (App Store Connect)
-All 5 iOS IAP products are created and priced in App Store Connect via `scripts/create_asc_products.py`:
+All 6 iOS IAP products are created and priced in App Store Connect:
 
 | Product ID | Type | Price | ASC ID |
 |-----------|------|-------|--------|
@@ -238,11 +240,12 @@ All 5 iOS IAP products are created and priced in App Store Connect via `scripts/
 | `com.endlessrumination.pack.revolutionaries` | Non-consumable | $4.99 | 6759794840 |
 | `com.endlessrumination.pack.philosophers` | Non-consumable | $4.99 | 6759794841 |
 | `com.endlessrumination.pack.creators` | Non-consumable | $4.99 | 6759794982 |
+| `com.endlessrumination.extra.takes` | Consumable | $0.99 | 6760308052 |
 
 - Subscription group: "Endless Rumination Pro" (ID: 21952994)
 - All products have en-US localizations and USD pricing set
-- Script is idempotent (handles 409 conflicts, looks up existing products)
-- **To re-run**: `source backend/.venv/bin/activate && python3 scripts/create_asc_products.py` (requires PyJWT, cryptography, requests)
+- Scripts are idempotent (handle 409 conflicts, look up existing products)
+- **To re-run**: `source backend/.venv/bin/activate && python3 scripts/create_asc_products.py` (voice packs + subscription) or `python3 scripts/create_extra_takes_product.py` (consumable)
 - **Remaining steps**: Upload review screenshots for each product, then submit with next app version
 
 ### IAP Product Setup (Google Play)
@@ -295,7 +298,7 @@ All 5 Android IAP products are created in Google Play Console:
 - 7 backend tests in `test_subscription.py` (mocked validators)
 
 ### Current Build Numbers
-- iOS: v1.0.0 build 24 (feature-complete: on-device inference, expanded safety, rate limiting, Pro lens picker, interrupt recovery, locale pricing, Pro text selection)
+- iOS: v1.0.0 build 25 (adds "3 Extra Perspectives" $0.99 consumable IAP, "Copy text" Pro benefit, App Store screenshots)
 - Android: versionCode 6 (Internal Testing, DRAFT status — still cloud API)
 
 ## Tech Stacks

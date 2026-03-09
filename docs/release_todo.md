@@ -2,7 +2,7 @@
 
 Last updated: 2026-03-07
 Target: iOS-only worldwide release, on-device inference (no backend, no ads)
-Current build: v1.0.0 build 22, branch `experiment/on-device-inference`
+Current build: v1.0.0 build 25, branch `experiment/on-device-inference`
 Min iOS: 18.0
 
 ---
@@ -60,12 +60,13 @@ Min iOS: 18.0
   - 6.5" (iPhone 15 Plus / 14 Pro Max)
 
 ### M5. IAP Review Screenshots (MANUAL)
-- [ ] Upload screenshots for each of the 5 IAP products in App Store Connect:
+- [ ] Upload screenshots for each of the 6 IAP products in App Store Connect:
   - `com.endlessrumination.pro.monthly` (subscription)
   - `com.endlessrumination.pack.strategists`
   - `com.endlessrumination.pack.revolutionaries`
   - `com.endlessrumination.pack.philosophers`
   - `com.endlessrumination.pack.creators`
+  - `com.endlessrumination.extra.takes` (consumable)
 
 ### Code-Level Items — ALL DONE
 - [x] M6. Subscription management deep link in ShopView

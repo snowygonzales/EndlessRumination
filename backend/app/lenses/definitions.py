@@ -7,10 +7,9 @@ from __future__ import annotations
 
 FORMAT_INSTRUCTION = """
 RESPOND IN EXACTLY THIS FORMAT:
-First line: A punchy headline under 12 words. No quotes around it.
-Then one blank line.
-Then 3-5 sentences of rich perspective engaging deeply with their specific problem.
-Nothing else. No markdown. No asterisks. No labels like "Headline:" or "Body:".
+3-5 sentences of rich perspective engaging deeply with their specific problem.
+Nothing else. No headline. No markdown. No asterisks. No labels.
+Just the perspective text, nothing before or after it.
 """.strip()
 
 

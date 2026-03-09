@@ -102,7 +102,7 @@ struct ShopView: View {
                                 .font(ERTypography.serifTitle())
                                 .foregroundStyle(ERColors.titleGradient)
                         }
-                        Text("All 20 perspectives \u{00B7} Revisit takes")
+                        Text("All 20 perspectives \u{00B7} Revisit takes \u{00B7} Copy text")
                             .font(.system(size: 12))
                             .foregroundStyle(ERColors.secondaryText)
                     }

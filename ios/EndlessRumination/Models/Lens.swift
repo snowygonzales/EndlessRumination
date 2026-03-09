@@ -12,6 +12,9 @@ struct Lens: Identifiable {
     /// Free-tier users see the first 5 lenses only
     static let freeLensCount = 5
 
+    /// Extra perspectives available via consumable IAP
+    static let extraTakesCount = 3
+
     /// These lens indices use Sonnet ("Wise") even for free-tier users
     static let wiseLensIndices: Set<Int> = [1, 9]
 

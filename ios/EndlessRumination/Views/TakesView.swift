@@ -2,10 +2,13 @@ import SwiftUI
 
 struct TakesView: View {
     @Environment(AppState.self) private var appState
+    @Environment(SubscriptionManager.self) private var subscriptionManager
     @State private var fadeState: FadeState = .visible
     @State private var showGoneForever = false
     @State private var isBusy = false
     @State private var dragOffset: CGFloat = 0
+    @State private var isPurchasingExtra = false
+    @State private var extraPurchaseError: String?
 
     enum FadeState {
         case visible, fadingOut, fadingIn
@@ -158,9 +161,13 @@ struct TakesView: View {
         VStack {
             Spacer()
             Group {
-                if appState.freeTakesRemaining <= 0 {
+                if appState.freeTakesRemaining <= 0 && !appState.hasExtraTakes {
+                    // Extra takes prompt
+                    extraTakesPrompt
+                } else if appState.freeTakesRemaining <= 0 && appState.hasExtraTakes {
+                    // All done (including extras)
                     HStack(spacing: 4) {
-                        Text("Daily limit reached \u{00B7}")
+                        Text("All perspectives delivered \u{00B7}")
                             .foregroundStyle(ERColors.dimText)
                         Button {
                             appState.showPaywall = true
@@ -169,6 +176,7 @@ struct TakesView: View {
                                 .foregroundStyle(ERColors.accentGold)
                         }
                     }
+                    .font(.system(size: 11, design: .monospaced))
                 } else if appState.freeTakesRemaining <= 3 {
                     HStack(spacing: 4) {
                         Text("\(appState.freeTakesRemaining)")
@@ -176,12 +184,61 @@ struct TakesView: View {
                         Text("free takes remaining")
                             .foregroundStyle(ERColors.dimText)
                     }
+                    .font(.system(size: 11, design: .monospaced))
                 } else {
                     EmptyView()
                 }
             }
-            .font(.system(size: 11, design: .monospaced))
             .padding(.bottom, 4)
+        }
+    }
+
+    // MARK: - Extra Takes Prompt
+
+    private var extraTakesPrompt: some View {
+        VStack(spacing: 6) {
+            Button {
+                purchaseExtraTakes()
+            } label: {
+                Group {
+                    if isPurchasingExtra {
+                        ProgressView()
+                            .tint(ERColors.accentWarm)
+                    } else {
+                        HStack(spacing: 6) {
+                            Text("+3 perspectives")
+                                .font(.system(size: 12, weight: .semibold))
+                            Text("\u{00B7}")
+                            Text(subscriptionManager.extraTakesDisplayPrice)
+                                .font(.system(size: 12, weight: .bold))
+                        }
+                    }
+                }
+                .foregroundStyle(ERColors.primaryText)
+                .padding(.horizontal, 18)
+                .padding(.vertical, 9)
+                .background(ERColors.inputBackground)
+                .clipShape(Capsule())
+                .overlay(
+                    Capsule()
+                        .stroke(ERColors.accentWarm.opacity(0.3), lineWidth: 1)
+                )
+            }
+            .disabled(isPurchasingExtra)
+
+            Button {
+                appState.showPaywall = true
+            } label: {
+                Text("or Go Pro for unlimited")
+                    .font(.system(size: 10))
+                    .foregroundStyle(ERColors.dimText)
+            }
+
+            if let error = extraPurchaseError {
+                Text(error)
+                    .font(.system(size: 10))
+                    .foregroundStyle(ERColors.accentRed)
+            }
         }
     }
 
@@ -226,6 +283,44 @@ struct TakesView: View {
                     goBack()
                 }
             }
+    }
+
+    // MARK: - Extra Takes Purchase
+
+    private func purchaseExtraTakes() {
+        guard !isPurchasingExtra else { return }
+        isPurchasingExtra = true
+        extraPurchaseError = nil
+
+        Task {
+            let success = await subscriptionManager.purchaseExtraTakes()
+
+            if success {
+                appState.hasExtraTakes = true
+                let extraIndices = appState.extraLensIndices
+                appState.usedLensIndices.formUnion(extraIndices)
+
+                // Generate extra takes
+                appState.isGenerating = true
+                let generator = LocalTakeGenerator(engine: appState.inferenceEngine)
+                await generator.generateTakes(
+                    problem: appState.problemText,
+                    lensIndices: extraIndices
+                ) { take in
+                    appState.receiveTake(take)
+                }
+                appState.isGenerating = false
+
+                // Auto-advance to the first extra take
+                if appState.currentTakeIndex < appState.totalTakes - 1 {
+                    advance()
+                }
+            } else if case .failed(let message) = subscriptionManager.purchaseState {
+                extraPurchaseError = message
+            }
+
+            isPurchasingExtra = false
+        }
     }
 
     // MARK: - Advance (forward)

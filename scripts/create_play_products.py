@@ -310,22 +310,22 @@ def main():
         {
             "sku": "com.endlessrumination.pack.strategists",
             "title": "Strategists Voice Pack",
-            "description": "5 voices from history's greatest strategists.",
+            "description": "5 voices on power, persuasion & getting ahead: Dale Carnegie, Machiavelli, Sun Tzu, Benjamin Franklin, P.T. Barnum.",
         },
         {
             "sku": "com.endlessrumination.pack.revolutionaries",
             "title": "Revolutionaries Voice Pack",
-            "description": "5 voices from history's great revolutionaries.",
+            "description": "5 voices of radical reframes & sharp wit: Lenin, Oscar Wilde, Mark Twain, Sigmund Freud, Cleopatra.",
         },
         {
             "sku": "com.endlessrumination.pack.philosophers",
             "title": "Philosophers Voice Pack",
-            "description": "5 voices from history's greatest philosophers.",
+            "description": "5 voices of deep thinking on the human condition: Immanuel Kant, Nietzsche, Kierkegaard, Epictetus, Lao Tzu.",
         },
         {
             "sku": "com.endlessrumination.pack.creators",
             "title": "Creators Voice Pack",
-            "description": "5 voices from history's greatest creators.",
+            "description": "5 voices on art, expression & finding meaning: Leonardo da Vinci, Emily Dickinson, Miyamoto Musashi, Walt Whitman, Frida Kahlo.",
         },
     ]
 

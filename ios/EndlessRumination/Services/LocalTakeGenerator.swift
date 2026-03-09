@@ -32,15 +32,23 @@ final class LocalTakeGenerator {
         log.info("generateTakes() called — problem length=\(problem.count), lensIndices=\(lensIndices)")
         log.info("Memory at start: \(DeviceCapability.info)")
 
-        // Ensure model is loaded before starting
+        // Ensure model is loaded before starting.
+        // Retry once if the first attempt fails (handles interrupted downloads
+        // from auto-lock or background suspension).
         do {
             log.info("Waiting for model to be ready...")
             try await engine.waitUntilReady()
             log.info("Model is ready, starting generation loop")
         } catch {
-            log.error("Model not ready: \(error.localizedDescription)")
-            log.error("Full error: \(String(describing: error))")
-            return 0
+            log.warning("First model load attempt failed: \(error.localizedDescription) — retrying...")
+            engine.retryLoading()
+            do {
+                try await engine.waitUntilReady()
+                log.info("Model ready after retry, starting generation loop")
+            } catch {
+                log.error("Model not ready after retry: \(error.localizedDescription)")
+                return 0
+            }
         }
 
         let safeProblem = sanitizeToASCII(problem)
@@ -92,13 +100,24 @@ final class LocalTakeGenerator {
 
     // MARK: - Input Sanitization
 
-    /// Replace non-ASCII characters with safe ASCII equivalents.
+    /// Convert non-ASCII characters to safe ASCII equivalents.
     ///
     /// The pruned BPE vocab is missing 128 high-byte characters (bytes 0x80-0xFF),
     /// so any non-ASCII input would crash swift-transformers' tokenizer.
+    ///
+    /// Strategy:
+    /// 1. Transliterate to Latin (handles Cyrillic, CJK, Arabic, etc.)
+    /// 2. Strip diacritics (ă→a, ș→s, ț→t, é→e, ñ→n, ü→u, etc.)
+    /// 3. Replace common Unicode punctuation with ASCII equivalents
+    /// 4. Strip any remaining non-ASCII as a safety net
     private func sanitizeToASCII(_ text: String) -> String {
-        var result = text
-        // Common Unicode replacements
+        // Step 1: Transliterate non-Latin scripts to Latin approximations
+        var result = text.applyingTransform(.toLatin, reverse: false) ?? text
+
+        // Step 2: Strip combining marks (diacritics) — ă→a, î→i, ș→s, ț→t, etc.
+        result = result.applyingTransform(.stripCombiningMarks, reverse: false) ?? result
+
+        // Step 3: Common Unicode punctuation → ASCII
         let replacements: [(String, String)] = [
             ("\u{2014}", "--"),  // em dash
             ("\u{2013}", "-"),   // en dash
@@ -108,31 +127,43 @@ final class LocalTakeGenerator {
             ("\u{201D}", "\""),  // right double quote
             ("\u{2026}", "..."), // ellipsis
             ("\u{00A0}", " "),   // non-breaking space
+            ("\u{2022}", "-"),   // bullet
+            ("\u{00B7}", "-"),   // middle dot
         ]
         for (from, to) in replacements {
             result = result.replacingOccurrences(of: from, with: to)
         }
-        // Strip any remaining non-ASCII characters
+
+        // Step 4: Safety net — strip anything still non-ASCII
         result = String(result.unicodeScalars.filter { $0.value < 128 })
+
+        if result != text {
+            log.info("Sanitized input: '\(text.prefix(60))' → '\(result.prefix(60))'")
+        }
+
         return result
     }
 
     // MARK: - Output Parsing
 
-    /// Maximum words allowed in a headline. Anything longer is body text, not a real headline.
-    private static let maxHeadlineWords = 14
+    /// Pre-canned headlines — the 4-bit model doesn't reliably produce short headlines,
+    /// so we use random display headlines and treat the entire model output as body text.
+    private static let cannedHeadlines = [
+        "A Fresh Perspective",
+        "A New Take",
+        "Here's Another Look",
+        "Consider This",
+        "A Different Angle",
+        "Something to Think About",
+        "One More Way to See It",
+        "Flip the Script",
+    ]
 
     /// Parse raw model output into a Take.
     ///
-    /// Expected format (from FORMAT_INSTRUCTION):
-    ///   Headline under 12 words
-    ///
-    ///   3-5 sentences of body text.
-    ///
-    /// Handles common model quirks:
-    ///   - Missing double-newline (tries single newline as fallback)
-    ///   - First line too long (body leaking into headline slot)
-    ///   - No separation at all (entire output used as body)
+    /// Uses the entire model output as body text with a random pre-canned headline.
+    /// The 4-bit quantized model doesn't reliably follow the headline+body format,
+    /// so we skip headline parsing entirely and maximize body quality.
     private func parseTake(raw: String, lensIndex: Int) -> Take? {
         let cleaned = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !cleaned.isEmpty else {
@@ -140,48 +171,7 @@ final class LocalTakeGenerator {
             return nil
         }
 
-        // Try double-newline split first, then single-newline
-        let candidate = extractHeadlineAndBody(from: cleaned)
-
-        if let (headline, body) = candidate {
-            let wordCount = headline.split(separator: " ").count
-            if wordCount <= Self.maxHeadlineWords && !body.isEmpty {
-                return Take(lensIndex: lensIndex, headline: headline, body: body)
-            }
-            // Headline too long — it's really body text, not a headline
-            log.info("parseTake: lens \(lensIndex) headline too long (\(wordCount) words), using fallback")
-        }
-
-        // Fallback: use entire output as body with generic headline
-        return Take(lensIndex: lensIndex, headline: "A Fresh Perspective", body: cleaned)
-    }
-
-    /// Try to split output into (headline, body) using double-newline, then single-newline.
-    private func extractHeadlineAndBody(from text: String) -> (String, String)? {
-        // Try double-newline split first (expected format)
-        let doubleParts = text.components(separatedBy: "\n\n")
-        if doubleParts.count >= 2 {
-            let headline = doubleParts[0].trimmingCharacters(in: .whitespacesAndNewlines)
-            let body = doubleParts.dropFirst()
-                .joined(separator: "\n\n")
-                .trimmingCharacters(in: .whitespacesAndNewlines)
-            if !headline.isEmpty, !body.isEmpty {
-                return (headline, body)
-            }
-        }
-
-        // Fallback: try single-newline split (model sometimes uses \n instead of \n\n)
-        let singleParts = text.components(separatedBy: "\n")
-        if singleParts.count >= 2 {
-            let headline = singleParts[0].trimmingCharacters(in: .whitespacesAndNewlines)
-            let body = singleParts.dropFirst()
-                .joined(separator: "\n")
-                .trimmingCharacters(in: .whitespacesAndNewlines)
-            if !headline.isEmpty, !body.isEmpty {
-                return (headline, body)
-            }
-        }
-
-        return nil
+        let headline = Self.cannedHeadlines[lensIndex % Self.cannedHeadlines.count]
+        return Take(lensIndex: lensIndex, headline: headline, body: cleaned)
     }
 }

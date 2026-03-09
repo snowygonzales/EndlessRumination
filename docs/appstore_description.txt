@@ -1,0 +1,62 @@
+Stuck in your head? Describe what's bothering you and get fresh perspectives from 20 AI personas — a comedian, a stoic philosopher, a therapist, your grandma, even your dog. All powered by on-device AI. Your thoughts never leave your iPhone.
+
+WHAT IT DOES
+
+Type out what's on your mind (20-50 words), then scroll through perspectives from wildly different viewpoints. A nihilist who finds freedom in meaninglessness. A five-year-old who suggests snacks. A drill sergeant with zero patience for overthinking. Each one engages with your specific situation — no generic advice.
+
+The goal isn't to solve your problem. It's to break the loop. When you see your worry through 20 different lenses, the grip loosens.
+
+COMPLETELY PRIVATE
+
+This is not a cloud app. A custom AI model runs entirely on your iPhone. Your words are processed locally and never transmitted anywhere. No accounts. No sign-ups. No tracking. No analytics. No ads. The privacy label says "Data Not Collected" because we literally collect nothing.
+
+The AI model downloads once (~2 GB) on first launch, then everything works offline.
+
+20 BUILT-IN PERSPECTIVES
+
+The Comedian — finds the absurdity in your situation
+The Stoic — Marcus Aurelius on what you can and can't control
+The Nihilist — nothing matters, and that's weirdly freeing
+The Optimist — real silver linings, not empty positivity
+The Pessimist — the worst case is almost always survivable
+Your Best Friend — calls you out lovingly
+The Poet — transforms your worry into something beautiful
+A Five-Year-Old — accidentally profound
+The CEO — treats your emotions like a business case
+The Therapist — CBT reframing, names cognitive distortions
+Your Grandma — "this too shall pass, sweetheart"
+The Alien — your problem as an anthropological field note
+The Historian — specific historical parallels
+The Philosopher — Kierkegaard, Sartre, and Camus walk into your worry
+Future You — barely remembers this, slightly amused
+Drill Sergeant — action plan, no excuses
+The Monk — mindfulness and impermanence
+The Scientist — what your amygdala is doing right now
+Conspiracy Theorist — the universe is testing you (benignly)
+Your Dog — walks fix everything, also snacks
+
+Free users get 5 random perspectives per submission.
+
+PRO SUBSCRIPTION
+
+Unlock all 20 perspectives on every submission. Navigate back and forth between takes. Choose which lenses to include. Up to 50 submissions per day.
+
+VOICE PACKS — HISTORICAL FIGURES
+
+Go deeper with 4 optional voice packs, each adding 5 legendary minds:
+
+The Strategists — Dale Carnegie, Machiavelli, Sun Tzu, Benjamin Franklin, P.T. Barnum
+The Revolutionaries — Lenin, Oscar Wilde, Mark Twain, Sigmund Freud, Cleopatra
+The Philosophers — Kant, Nietzsche, Kierkegaard, Epictetus, Lao Tzu
+The Creators — Leonardo da Vinci, Emily Dickinson, Miyamoto Musashi, Walt Whitman, Frida Kahlo
+
+IMPORTANT
+
+Endless Rumination is a creative thinking tool, not a mental health service. It is not a substitute for professional therapy, counseling, or medical advice. If you are in crisis, please contact a mental health professional or crisis helpline.
+
+Requires iPhone 12 Pro or later (6 GB RAM minimum). iOS 18 required.
+
+Pro subscription is $9.99/month. Payment is charged to your Apple ID at confirmation. Subscription auto-renews monthly unless cancelled at least 24 hours before the end of the current period. Manage in Settings > Subscriptions. Voice packs are $4.99 each, one-time purchase.
+
+Privacy Policy: https://github.com/snowygonzales/EndlessRumination/blob/master/docs/privacy-policy.md
+Terms of Service: https://github.com/snowygonzales/EndlessRumination/blob/master/docs/terms-of-service.md

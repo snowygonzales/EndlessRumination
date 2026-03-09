@@ -8,25 +8,39 @@ struct EndlessRuminationApp: App {
     var body: some Scene {
         WindowGroup {
             Group {
-                if DeviceCapability.canRunModel {
-                    ContentView()
+                #if DEBUG
+                if let screen = ScreenshotMode.activeScreen {
+                    ScreenshotHostView(screen: screen)
                 } else {
-                    UnsupportedDeviceView()
+                    normalAppContent
+                }
+                #else
+                normalAppContent
+                #endif
+            }
+        }
+    }
+
+    private var normalAppContent: some View {
+        Group {
+            if DeviceCapability.canRunModel {
+                ContentView()
+            } else {
+                UnsupportedDeviceView()
+            }
+        }
+            .environment(appState)
+            .environment(subscriptionManager)
+            .task {
+                appState.subscriptionManager = subscriptionManager
+                await subscriptionManager.start()
+
+                // Only start model download on capable devices
+                if DeviceCapability.canRunModel {
+                    appState.inferenceEngine.startLoading()
                 }
             }
-                .environment(appState)
-                .environment(subscriptionManager)
-                .task {
-                    appState.subscriptionManager = subscriptionManager
-                    await subscriptionManager.start()
-
-                    // Only start model download on capable devices
-                    if DeviceCapability.canRunModel {
-                        appState.inferenceEngine.startLoading()
-                    }
-                }
-                .preferredColorScheme(.dark)
-        }
+            .preferredColorScheme(.dark)
     }
 }
 

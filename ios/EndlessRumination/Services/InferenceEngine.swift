@@ -92,11 +92,21 @@ final class InferenceEngine {
     }
 
     /// Await model readiness. If loading hasn't started, starts it.
+    /// Throws if loading finishes but model is not actually ready.
     func waitUntilReady() async throws {
         log.info("waitUntilReady() — isLoaded=\(self.isLoaded)")
         if isLoaded { return }
         if loadTask == nil { startLoading() }
+
+        // Await the load task — it catches errors internally, so this won't throw.
+        // We must check isLoaded afterward to detect silent failures.
         try await loadTask?.value
+
+        guard isLoaded else {
+            let msg = loadError ?? "Model loading completed but model is not ready."
+            log.error("waitUntilReady() failed: \(msg)")
+            throw InferenceError.generationFailed(msg)
+        }
     }
 
     #if !targetEnvironment(simulator)

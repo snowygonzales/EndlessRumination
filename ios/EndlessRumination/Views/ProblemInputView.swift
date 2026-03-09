@@ -117,8 +117,8 @@ struct ProblemInputView: View {
                 .padding(.horizontal, 28)
                 .padding(.bottom, 8)
 
-                // Pro lens picker (collapses when keyboard appears)
-                if appState.isPro && !isTextFieldFocused {
+                // Pro lens picker
+                if appState.isPro {
                     VStack(spacing: 0) {
                         Button {
                             withAnimation(.spring(duration: 0.3)) {
@@ -214,19 +214,21 @@ struct ProblemInputView: View {
                 .padding(.horizontal, 24)
                 .padding(.bottom, 16)
 
-                // Disclaimers
-                VStack(spacing: 4) {
-                    HStack(spacing: 4) {
-                        Image(systemName: "lock.shield.fill")
-                            .font(.system(size: 10))
-                        Text("Your thoughts never leave this device.")
+                // Disclaimers (hidden when keyboard is up to save space)
+                if !isTextFieldFocused {
+                    VStack(spacing: 4) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "lock.shield.fill")
+                                .font(.system(size: 10))
+                            Text("Your thoughts never leave this device.")
+                                .font(ERTypography.caption)
+                        }
+                        Text("Not a substitute for professional mental health care.")
                             .font(ERTypography.caption)
                     }
-                    Text("Not a substitute for professional mental health care.")
-                        .font(ERTypography.caption)
+                    .foregroundStyle(ERColors.dimText)
+                    .padding(.bottom, 24)
                 }
-                .foregroundStyle(ERColors.dimText)
-                .padding(.bottom, 24)
             }
 
             // Safety overlay
@@ -318,12 +320,16 @@ struct ProblemInputView: View {
         appState.isGenerating = true
         isSubmitting = false
 
+        // Compute lens indices and track them for potential extra takes later
+        let indices = appState.lensIndicesForRequest
+        appState.usedLensIndices = Set(indices)
+
         // Store the task so it survives view rebuilds and app interrupts
         appState.generationTask = Task {
             let generator = LocalTakeGenerator(engine: appState.inferenceEngine)
             await generator.generateTakes(
                 problem: appState.problemText,
-                lensIndices: appState.lensIndicesForRequest
+                lensIndices: indices
             ) { take in
                 appState.receiveTake(take)
             }

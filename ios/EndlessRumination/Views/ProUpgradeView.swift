@@ -49,6 +49,7 @@ struct ProUpgradeView: View {
                     benefitRow(icon: "sparkles", text: "All 20 perspectives on every problem")
                     benefitRow(icon: "slider.horizontal.3", text: "Choose which perspectives to hear")
                     benefitRow(icon: "arrow.up.arrow.down", text: "Revisit takes -- swipe back anytime")
+                    benefitRow(icon: "doc.on.doc", text: "Copy text -- long-press to copy any take")
                 }
                 .padding(.horizontal, 32)
 

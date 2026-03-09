@@ -42,6 +42,11 @@ final class AppState {
     var showShop: Bool = false
     var productsLoaded: Bool = false
 
+    /// Whether the user purchased extra takes for the current submission (consumable).
+    var hasExtraTakes: Bool = false
+    /// Tracks which lens indices were already used in the current submission (to avoid repeats).
+    var usedLensIndices: Set<Int> = []
+
     /// Pro lens selection — which lenses the user has toggled on.
     /// `nil` means "all available" (default). Only used for Pro users.
     var selectedLensIndices: Set<Int>?
@@ -110,7 +115,7 @@ final class AppState {
             }
             return allAvailable.count
         }
-        return Lens.freeLensCount
+        return Lens.freeLensCount + (hasExtraTakes ? Lens.extraTakesCount : 0)
     }
 
     /// All lens indices available to the current Pro user (base 20 + owned packs).
@@ -128,7 +133,7 @@ final class AppState {
     }
 
     var freeTakesRemaining: Int {
-        max(0, Lens.freeLensCount - (currentTakeIndex + 1))
+        max(0, totalTakes - (currentTakeIndex + 1))
     }
 
     var lensIndicesForRequest: [Int] {
@@ -142,6 +147,15 @@ final class AppState {
         }
         // Free: pick 5 random from all 20 base lenses each run
         return Array(0..<20).shuffled().prefix(Lens.freeLensCount).map { $0 }
+    }
+
+    /// Pick extra lens indices that haven't been used yet in the current submission.
+    var extraLensIndices: [Int] {
+        Array(0..<20)
+            .filter { !usedLensIndices.contains($0) }
+            .shuffled()
+            .prefix(Lens.extraTakesCount)
+            .map { $0 }
     }
 
     var ownedPackProductIDs: [String] {
@@ -225,6 +239,8 @@ final class AppState {
         showInstructionOverlay = true
         isGenerating = false
         showSafetyOverlay = false
+        hasExtraTakes = false
+        usedLensIndices = []
     }
 
     func navigateToInput() {

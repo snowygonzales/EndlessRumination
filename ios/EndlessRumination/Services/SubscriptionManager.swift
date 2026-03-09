@@ -8,16 +8,18 @@ private let logger = Logger(subsystem: "com.endlessrumination", category: "Subsc
 final class SubscriptionManager {
     private(set) var proProduct: Product?
     private(set) var packProducts: [String: Product] = [:]
+    private(set) var extraTakesProduct: Product?
     private(set) var purchaseState: PurchaseState = .idle
     private(set) var isProSubscribed: Bool = false
     private(set) var ownedPackIDs: Set<String> = []
     private(set) var productsLoaded: Bool = false
 
     static let proMonthlyID = "com.endlessrumination.pro.monthly"
+    static let extraTakesID = "com.endlessrumination.extra.takes"
 
     static let packProductIDs: Set<String> = Set(VoicePack.all.map(\.productID))
 
-    static let allProductIDs: Set<String> = Set([proMonthlyID]).union(packProductIDs)
+    static let allProductIDs: Set<String> = Set([proMonthlyID, extraTakesID]).union(packProductIDs)
 
     private var updateListenerTask: Task<Void, Never>?
 
@@ -93,6 +95,48 @@ final class SubscriptionManager {
         }
     }
 
+    // MARK: - Extra Takes Purchase (Consumable)
+
+    func purchaseExtraTakes() async -> Bool {
+        guard let product = extraTakesProduct else { return false }
+        purchaseState = .purchasing
+
+        do {
+            let result = try await product.purchase()
+            switch result {
+            case .success(let verification):
+                let transaction = try checkVerified(verification)
+                await transaction.finish()
+                purchaseState = .purchased
+                return true
+
+            case .userCancelled, .pending:
+                purchaseState = .idle
+                return false
+
+            @unknown default:
+                purchaseState = .idle
+                return false
+            }
+        } catch {
+            purchaseState = .failed(error.localizedDescription)
+            return false
+        }
+    }
+
+    /// Display price for extra takes — real StoreKit price if available, fallback otherwise.
+    var extraTakesDisplayPrice: String {
+        extraTakesProduct?.displayPrice ?? fallbackExtraTakesPrice
+    }
+
+    /// Locale-formatted extra takes price fallback.
+    private var fallbackExtraTakesPrice: String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .currency
+        formatter.locale = Locale.current
+        return formatter.string(from: 0.99 as NSNumber) ?? "$0.99"
+    }
+
     // MARK: - Pack Helpers
 
     func isPackOwned(_ productID: String) -> Bool {
@@ -147,6 +191,8 @@ final class SubscriptionManager {
             for product in products {
                 if product.id == Self.proMonthlyID {
                     proProduct = product
+                } else if product.id == Self.extraTakesID {
+                    extraTakesProduct = product
                 } else if Self.packProductIDs.contains(product.id) {
                     packProducts[product.id] = product
                 }
