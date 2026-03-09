@@ -11,7 +11,7 @@ Psychology app with two independent native frontends (SwiftUI iOS + Jetpack Comp
 
 Pivoting from cloud Claude API to fully on-device inference using fine-tuned **Qwen 3.5 4B** via **Apple MLX**. Goal: privacy-first iOS app positioned for App Store featuring ("your thoughts never leave this device").
 
-**Status:** Steps 1-6 complete (dataset, MLX verify, SFT, DPO, merge, eval, optimize, MLX convert, iOS refactor). Build 25 adds "3 Extra Perspectives" consumable IAP ($0.99), "Copy text" Pro benefit label, and App Store screenshots. **Next: Step 7 — device testing.**
+**Status:** Steps 1-6 complete (dataset, MLX verify, SFT, DPO, merge, eval, optimize, MLX convert, iOS refactor). Build 26 adds robust download error handling (auto-retry, stall detection, friendly error messages), extra takes IAP screenshot, and screenshot capture documentation. **Next: Step 7 — device testing.**
 
 Key tech choices:
 - **Model:** Qwen 3.5 4B only (2B dropped — insufficient comprehension) — Gated DeltaNet architecture
@@ -87,7 +87,7 @@ EndlessRumination/
 ├── models/                     # Trained models + MLX exports (gitignored)
 ├── .mlx-venv/                  # Python 3.12 venv for MLX (gitignored)
 ├── multiplatform/              # ARCHIVED — KMP reference code only
-├── docs/                       # Privacy policy, ToS, support, release checklist
+├── docs/                       # Privacy policy, ToS, support, release checklist, screenshot capture guide
 ├── experiment_steps.md         # On-device inference pipeline guide
 ├── CLAUDE.md
 └── KICKOFF.md
@@ -117,6 +117,7 @@ EndlessRumination/
 - **Terms of Service**: https://github.com/snowygonzales/EndlessRumination/blob/master/docs/terms-of-service.md
 - **Support page**: https://github.com/snowygonzales/EndlessRumination/blob/master/docs/support.md
 - **Release checklist**: `docs/release_todo.md` — manual console tasks remaining before launch
+- **Screenshot capture guide**: `docs/screenshot-capture.md` — automated simulator screenshot procedure with locale setup, all screen names, and batch capture script
 - **GitHub repo**: Public (required for reviewer-accessible privacy policy/ToS URLs)
 - iOS debug builds → localhost:8000, release builds → Railway URL
 - Android always uses Railway production URL
@@ -298,7 +299,7 @@ All 5 Android IAP products are created in Google Play Console:
 - 7 backend tests in `test_subscription.py` (mocked validators)
 
 ### Current Build Numbers
-- iOS: v1.0.0 build 25 (adds "3 Extra Perspectives" $0.99 consumable IAP, "Copy text" Pro benefit, App Store screenshots)
+- iOS: v1.0.0 build 26 (robust download error handling, extra takes IAP screenshot, screenshot docs)
 - Android: versionCode 6 (Internal Testing, DRAFT status — still cloud API)
 
 ## Tech Stacks

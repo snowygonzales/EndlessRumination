@@ -2,6 +2,7 @@ import Foundation
 import os.log
 
 #if !targetEnvironment(simulator)
+import Hub
 import MLX
 import MLXLLM
 import MLXLMCommon
@@ -31,6 +32,72 @@ enum InferenceError: LocalizedError {
     }
 }
 
+// MARK: - Download Error Classification
+
+/// User-facing download error with friendly messages and retry semantics.
+enum DownloadError: Equatable {
+    case noInternet
+    case timeout
+    case connectionLost
+    case serverError(statusCode: Int)
+    case modelNotFound
+    case accessDenied
+    case insufficientStorage(available: String, required: String)
+    case fileCorrupted
+    case deviceNotSupported
+    case downloadStalled
+    case unknown(String)
+
+    /// Whether this error is likely transient and worth auto-retrying.
+    var isTransient: Bool {
+        switch self {
+        case .timeout, .connectionLost, .serverError, .downloadStalled:
+            return true
+        case .noInternet, .modelNotFound, .accessDenied,
+             .insufficientStorage, .fileCorrupted, .deviceNotSupported, .unknown:
+            return false
+        }
+    }
+
+    /// Human-readable message for display in the UI.
+    var userMessage: String {
+        switch self {
+        case .noInternet:
+            return "No internet connection. Connect to Wi-Fi and try again."
+        case .timeout:
+            return "Connection timed out. Check your network and try again."
+        case .connectionLost:
+            return "Connection lost during download. Tap to retry."
+        case .serverError(let code):
+            return "Server error (\(code)). Please try again later."
+        case .modelNotFound:
+            return "Model not found on server. Please update the app."
+        case .accessDenied:
+            return "Access denied. Please update the app."
+        case .insufficientStorage(let available, let required):
+            return "Not enough storage. \(available) available, \(required) required."
+        case .fileCorrupted:
+            return "Download was corrupted. Tap to retry."
+        case .deviceNotSupported:
+            return "This device doesn't have enough memory to run the AI model."
+        case .downloadStalled:
+            return "Download appears stuck. Tap to retry."
+        case .unknown:
+            return "Something went wrong. Tap to retry."
+        }
+    }
+
+    /// Whether the UI should show a retry button for this error.
+    var isRetryable: Bool {
+        switch self {
+        case .modelNotFound, .accessDenied, .deviceNotSupported:
+            return false
+        default:
+            return true
+        }
+    }
+}
+
 // MARK: - InferenceEngine
 
 /// On-device LLM inference via Apple MLX.
@@ -46,11 +113,23 @@ final class InferenceEngine {
     private(set) var isLoaded = false
     private(set) var downloadProgress: Double = 0
     private(set) var isDownloading = false
-    var loadError: String?
+    private(set) var downloadError: DownloadError?
+    private(set) var retryAttempt: Int = 0
+    private(set) var isAutoRetrying: Bool = false
+
+    /// Backward-compatible computed property (used by LoadingView).
+    var loadError: String? { downloadError?.userMessage }
 
     // MARK: Private
 
     private var loadTask: Task<Void, Error>?
+
+    // Stall watchdog
+    private var lastProgressValue: Double = 0
+    private var lastProgressTime: Date = .now
+    private var stallCheckTask: Task<Void, Never>?
+    private static let stallTimeout: TimeInterval = 60
+    private static let retryDelays: [Duration] = [.seconds(10), .seconds(30), .seconds(60)]
 
     #if !targetEnvironment(simulator)
     private var modelContainer: ModelContainer?
@@ -83,10 +162,15 @@ final class InferenceEngine {
 
     /// Reset error state and retry the download/load from scratch.
     func retryLoading() {
-        log.info("retryLoading() called — resetting state")
+        log.info("retryLoading() called -- resetting state")
+        loadTask?.cancel()
         loadTask = nil
-        loadError = nil
+        stallCheckTask?.cancel()
+        stallCheckTask = nil
+        downloadError = nil
         isDownloading = false
+        isAutoRetrying = false
+        retryAttempt = 0
         downloadProgress = 0
         startLoading()
     }
@@ -144,12 +228,14 @@ final class InferenceEngine {
         #else
         log.info("performLoad() start. \(DeviceCapability.info)")
 
+        // Pre-flight: device capability check
         guard DeviceCapability.canRunModel else {
-            log.error("Device NOT supported — RAM too low. \(DeviceCapability.info)")
+            log.error("Device NOT supported -- RAM too low. \(DeviceCapability.info)")
+            downloadError = .deviceNotSupported
             throw InferenceError.deviceNotSupported
         }
 
-        // Check available storage before downloading ~2.1 GB model
+        // Pre-flight: storage check
         let requiredBytes: Int64 = 2_300_000_000 // 2.3 GB with headroom
         if let freeBytes = try? URL(fileURLWithPath: NSHomeDirectory())
             .resourceValues(forKeys: [.volumeAvailableCapacityForImportantUsageKey])
@@ -158,46 +244,230 @@ final class InferenceEngine {
             log.info("Storage check: \(String(format: "%.1f", freeGB)) GB available")
             if freeBytes < requiredBytes {
                 let available = String(format: "%.1f GB", freeGB)
+                downloadError = .insufficientStorage(available: available, required: "2.1 GB")
                 log.error("Insufficient storage: \(available) available, 2.1 GB required")
                 throw InferenceError.insufficientStorage(available: available, required: "2.1 GB")
             }
         }
 
-        isDownloading = true
-        do {
-            let modelID = "sefiroth/er-qwen35-4b-mlx-4bit"
-            log.info("Loading model: \(modelID)")
+        // Attempt download with auto-retry for transient errors
+        let maxAttempts = Self.retryDelays.count + 1 // 1 initial + 3 retries
 
-            let config = ModelConfiguration(id: modelID)
+        for attempt in 1...maxAttempts {
+            do {
+                try await attemptDownload()
+                // Success -- clear retry state
+                isAutoRetrying = false
+                retryAttempt = 0
+                return
+            } catch {
+                let classified = Self.classifyError(error)
+                log.error("Download attempt \(attempt)/\(maxAttempts) failed: \(classified.userMessage) (raw: \(error.localizedDescription))")
+                log.error("Full error: \(String(describing: error))")
 
-            log.info("Calling LLMModelFactory.shared.loadContainer...")
-            modelContainer = try await LLMModelFactory.shared.loadContainer(
-                configuration: config
-            ) { [weak self] progress in
-                Task { @MainActor [weak self] in
-                    self?.downloadProgress = progress.fractionCompleted
+                // If non-transient or last attempt, surface to user immediately
+                let isLastAttempt = attempt == maxAttempts
+                if !classified.isTransient || isLastAttempt {
+                    isAutoRetrying = false
+                    retryAttempt = 0
+                    downloadError = classified
+                    isDownloading = false
+                    stopStallWatchdog()
+                    throw error
                 }
+
+                // Transient error: auto-retry after delay
+                let delayIndex = attempt - 1
+                let delay = Self.retryDelays[delayIndex]
+                retryAttempt = attempt
+                isAutoRetrying = true
+                downloadError = nil
+                isDownloading = false
+
+                log.info("Auto-retrying in \(delay) (attempt \(attempt + 1)/\(maxAttempts))...")
+
+                try await Task.sleep(for: delay)
+                try Task.checkCancellation()
             }
-            isDownloading = false
-
-            // Warm up Metal shaders by running a tiny 1-token generation.
-            // The first inference triggers JIT shader compilation (~2-3s overhead).
-            // By paying that cost here (during load), the first real take starts fast.
-            log.info("Warming up GPU shaders...")
-            await warmUpGPU()
-
-            isLoaded = true
-
-            let snap = Memory.snapshot()
-            log.info("Model loaded + GPU warm. Active: \(snap.activeMemory / 1024 / 1024) MB, Cache: \(snap.cacheMemory / 1024 / 1024) MB, Peak: \(snap.peakMemory / 1024 / 1024) MB")
-        } catch {
-            isDownloading = false
-            loadError = error.localizedDescription
-            log.error("Model load FAILED: \(error.localizedDescription)")
-            log.error("Full error: \(String(describing: error))")
-            throw error
         }
         #endif
+    }
+
+    // MARK: - Private: Single Download Attempt
+
+    #if !targetEnvironment(simulator)
+    /// Execute a single download + load attempt. Starts the stall watchdog.
+    private func attemptDownload() async throws {
+        isDownloading = true
+        downloadProgress = 0
+        downloadError = nil
+        startStallWatchdog()
+
+        defer {
+            stopStallWatchdog()
+        }
+
+        let modelID = "sefiroth/er-qwen35-4b-mlx-4bit"
+        log.info("Loading model: \(modelID)")
+
+        let config = ModelConfiguration(id: modelID)
+
+        log.info("Calling LLMModelFactory.shared.loadContainer...")
+        modelContainer = try await LLMModelFactory.shared.loadContainer(
+            configuration: config
+        ) { [weak self] progress in
+            Task { @MainActor [weak self] in
+                self?.downloadProgress = progress.fractionCompleted
+            }
+        }
+        isDownloading = false
+
+        // Warm up Metal shaders by running a tiny 1-token generation.
+        // The first inference triggers JIT shader compilation (~2-3s overhead).
+        // By paying that cost here (during load), the first real take starts fast.
+        log.info("Warming up GPU shaders...")
+        await warmUpGPU()
+
+        isLoaded = true
+
+        let snap = Memory.snapshot()
+        log.info("Model loaded + GPU warm. Active: \(snap.activeMemory / 1024 / 1024) MB, Cache: \(snap.cacheMemory / 1024 / 1024) MB, Peak: \(snap.peakMemory / 1024 / 1024) MB")
+    }
+    #endif
+
+    // MARK: - Private: Stall Watchdog
+
+    /// Start monitoring download progress for stalls.
+    /// Checks every 15 seconds if progress has advanced. If stuck for 60+ seconds, cancels.
+    private func startStallWatchdog() {
+        stallCheckTask?.cancel()
+        lastProgressValue = downloadProgress
+        lastProgressTime = .now
+
+        stallCheckTask = Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(15))
+                guard !Task.isCancelled else { return }
+                guard let self else { return }
+
+                if self.isDownloading && !self.isLoaded {
+                    let now = Date.now
+                    if self.downloadProgress != self.lastProgressValue {
+                        // Progress moved -- reset the clock
+                        self.lastProgressValue = self.downloadProgress
+                        self.lastProgressTime = now
+                    } else if now.timeIntervalSince(self.lastProgressTime) >= Self.stallTimeout {
+                        // Stalled for 60+ seconds
+                        log.warning("Download stall detected: progress stuck at \(String(format: "%.1f%%", self.downloadProgress * 100)) for \(Int(now.timeIntervalSince(self.lastProgressTime)))s")
+                        self.loadTask?.cancel()
+                        self.isDownloading = false
+                        self.downloadError = .downloadStalled
+                        self.stallCheckTask?.cancel()
+                        return
+                    }
+                }
+            }
+        }
+    }
+
+    /// Stop the stall watchdog.
+    private func stopStallWatchdog() {
+        stallCheckTask?.cancel()
+        stallCheckTask = nil
+    }
+
+    // MARK: - Private: Error Classification
+
+    /// Classify a raw error from loadContainer / Hub into a user-friendly DownloadError.
+    private static func classifyError(_ error: Error) -> DownloadError {
+        // 1. Our own InferenceError
+        if let inferenceError = error as? InferenceError {
+            switch inferenceError {
+            case .deviceNotSupported:
+                return .deviceNotSupported
+            case .insufficientStorage(let available, let required):
+                return .insufficientStorage(available: available, required: required)
+            default:
+                return .unknown(error.localizedDescription)
+            }
+        }
+
+        #if !targetEnvironment(simulator)
+        // 2. Hub.HubClientError
+        if let hubError = error as? Hub.HubClientError {
+            switch hubError {
+            case .authorizationRequired:
+                return .accessDenied
+            case .fileNotFound, .resourceNotFound:
+                return .modelNotFound
+            case .httpStatusCode(let code):
+                switch code {
+                case 401, 403: return .accessDenied
+                case 404: return .modelNotFound
+                case 500...599: return .serverError(statusCode: code)
+                default: return .serverError(statusCode: code)
+                }
+            case .networkError(let urlError):
+                return classifyURLError(urlError)
+            case .downloadError:
+                return .connectionLost
+            default:
+                return .unknown(error.localizedDescription)
+            }
+        }
+
+        // 3. HubApi.EnvironmentError
+        if let envError = error as? HubApi.EnvironmentError {
+            switch envError {
+            case .fileIntegrityError:
+                return .fileCorrupted
+            case .offlineModeError:
+                return .noInternet
+            case .invalidMetadataError:
+                return .fileCorrupted
+            case .fileWriteError:
+                return .unknown(error.localizedDescription)
+            }
+        }
+        #endif
+
+        // 4. Raw URLError
+        if let urlError = error as? URLError {
+            return classifyURLError(urlError)
+        }
+
+        // 5. NSError with URLError domain
+        let nsError = error as NSError
+        if nsError.domain == NSURLErrorDomain {
+            return classifyURLErrorCode(nsError.code)
+        }
+
+        // 6. Task cancellation
+        if error is CancellationError {
+            return .downloadStalled
+        }
+
+        // 7. Fallback
+        return .unknown(error.localizedDescription)
+    }
+
+    private static func classifyURLError(_ urlError: URLError) -> DownloadError {
+        classifyURLErrorCode(urlError.code.rawValue)
+    }
+
+    private static func classifyURLErrorCode(_ code: Int) -> DownloadError {
+        switch URLError.Code(rawValue: code) {
+        case .notConnectedToInternet, .cannotFindHost, .cannotConnectToHost, .dnsLookupFailed:
+            return .noInternet
+        case .timedOut:
+            return .timeout
+        case .networkConnectionLost:
+            return .connectionLost
+        case .secureConnectionFailed:
+            return .unknown("Secure connection failed. Check your network.")
+        default:
+            return .connectionLost
+        }
     }
 
     // MARK: - Private: GPU Warm-Up

@@ -127,8 +127,8 @@ struct LoadingView: View {
                 .font(.system(size: 16, weight: .semibold))
                 .foregroundStyle(ERColors.primaryText)
 
-            if let loadErr = appState.inferenceEngine.loadError {
-                Text(loadErr)
+            if let error = appState.inferenceEngine.downloadError {
+                Text(error.userMessage)
                     .font(.system(size: 12))
                     .foregroundStyle(ERColors.dimText)
                     .multilineTextAlignment(.center)

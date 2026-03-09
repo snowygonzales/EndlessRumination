@@ -18,6 +18,7 @@ enum ScreenshotScreen: String {
     case packRevolutionaries = "pack-revolutionaries"
     case packPhilosophers = "pack-philosophers"
     case packCreators = "pack-creators"
+    case extraTakes = "extra-takes"
 }
 
 enum ScreenshotMode {
@@ -82,6 +83,9 @@ struct ScreenshotHostView: View {
 
                 case .packCreators:
                     packDetailView(id: "creators")
+
+                case .extraTakes:
+                    setupTakesView(pro: false)
                 }
             }
         }
@@ -108,7 +112,7 @@ struct ScreenshotHostView: View {
                 appState.subscriptionTier = .pro
             }
 
-        case .takes, .takes2, .takes3, .takes4, .takesPro:
+        case .takes, .takes2, .takes3, .takes4, .takesPro, .extraTakes:
             appState.currentScreen = .takes
             if screen == .takesPro {
                 appState.subscriptionTier = .pro
@@ -118,6 +122,7 @@ struct ScreenshotHostView: View {
             case .takes2: appState.currentTakeIndex = 1
             case .takes3: appState.currentTakeIndex = 2
             case .takes4: appState.currentTakeIndex = 3
+            case .extraTakes: appState.currentTakeIndex = 4 // Last free take — triggers extra takes prompt
             default: appState.currentTakeIndex = 0
             }
 

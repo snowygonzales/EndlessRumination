@@ -3,6 +3,9 @@ import SwiftUI
 // MARK: - Multi-screen onboarding that masks the ~2.1 GB model download
 
 struct OnboardingView: View {
+    // retryDelays.count + 1 initial attempt = 4 total
+    private static let maxDownloadAttempts = 4
+
     @Environment(AppState.self) private var appState
     @State private var currentPage = 0
     @State private var appeared = false
@@ -374,7 +377,17 @@ struct OnboardingView: View {
                         .font(.system(size: 10, design: .monospaced))
                         .foregroundStyle(ERColors.accentGreen.opacity(0.8))
                 }
-            } else if !appState.inferenceEngine.isDownloading && appState.inferenceEngine.loadError == nil {
+            } else if appState.inferenceEngine.isAutoRetrying {
+                // Auto-retrying after transient error
+                HStack(spacing: 6) {
+                    ProgressView()
+                        .scaleEffect(0.5)
+                        .tint(ERColors.accentGold)
+                    Text("Retrying... (attempt \(appState.inferenceEngine.retryAttempt + 1) of \(Self.maxDownloadAttempts))")
+                        .font(.system(size: 10, design: .monospaced))
+                        .foregroundStyle(ERColors.accentGold.opacity(0.8))
+                }
+            } else if !appState.inferenceEngine.isDownloading && appState.inferenceEngine.downloadError == nil {
                 // Waiting to start
                 HStack(spacing: 4) {
                     ProgressView()
@@ -383,19 +396,32 @@ struct OnboardingView: View {
                         .font(.system(size: 10, design: .monospaced))
                         .foregroundStyle(ERColors.dimText)
                 }
-            } else if let error = appState.inferenceEngine.loadError {
-                // Error with retry
+            } else if let error = appState.inferenceEngine.downloadError {
+                // Classified error
                 VStack(spacing: 2) {
-                    Button {
-                        appState.inferenceEngine.retryLoading()
-                    } label: {
+                    if error.isRetryable {
+                        Button {
+                            appState.inferenceEngine.retryLoading()
+                        } label: {
+                            HStack(spacing: 4) {
+                                Image(systemName: "arrow.clockwise")
+                                    .font(.system(size: 10))
+                                    .foregroundStyle(ERColors.accentRed)
+                                Text(error.userMessage)
+                                    .font(.system(size: 10, design: .monospaced))
+                                    .foregroundStyle(ERColors.accentRed.opacity(0.8))
+                                    .multilineTextAlignment(.center)
+                            }
+                        }
+                    } else {
                         HStack(spacing: 4) {
-                            Image(systemName: "arrow.clockwise")
+                            Image(systemName: "xmark.circle")
                                 .font(.system(size: 10))
                                 .foregroundStyle(ERColors.accentRed)
-                            Text(error.contains("storage") ? "Not enough storage" : "Download failed -- tap to retry")
+                            Text(error.userMessage)
                                 .font(.system(size: 10, design: .monospaced))
                                 .foregroundStyle(ERColors.accentRed.opacity(0.8))
+                                .multilineTextAlignment(.center)
                         }
                     }
                 }
