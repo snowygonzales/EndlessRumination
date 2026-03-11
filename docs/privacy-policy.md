@@ -80,7 +80,7 @@ We may update this policy from time to time. Changes will be posted here with an
 ## Contact
 
 For privacy questions or data requests:
-**Email**: sefiroth@gmail.com
+**Email**: endless-support@symmetry.ro
 
 ---
 

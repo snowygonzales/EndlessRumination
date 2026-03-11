@@ -80,7 +80,7 @@ These Terms are governed by the laws of the United States. Any disputes shall be
 ## 14. Contact
 
 For questions about these Terms:
-**Email**: sefiroth@gmail.com
+**Email**: endless-support@symmetry.ro
 
 ---
 

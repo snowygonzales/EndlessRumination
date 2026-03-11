@@ -27,7 +27,7 @@ Your problem text is processed entirely on your device by the on-device AI model
 
 For support, feedback, or data requests:
 
-**Email**: sefiroth@gmail.com
+**Email**: endless-support@symmetry.ro
 
 ---
 

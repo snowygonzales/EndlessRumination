@@ -194,7 +194,7 @@ fun ShopScreen(appState: AppState) {
                 confirmButton = {
                     TextButton(onClick = {
                         showDeleteDialog = false
-                        val intent = Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:sefiroth@gmail.com")).apply {
+                        val intent = Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:endless-support@symmetry.ro")).apply {
                             putExtra(Intent.EXTRA_SUBJECT, "Delete My Account")
                             putExtra(Intent.EXTRA_TEXT, "Please delete my Endless Rumination account and all associated data.")
                         }
