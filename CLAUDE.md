@@ -11,7 +11,7 @@ Psychology app with two independent native frontends (SwiftUI iOS + Jetpack Comp
 
 Pivoting from cloud Claude API to fully on-device inference using fine-tuned **Qwen 3.5 4B** via **Apple MLX**. Goal: privacy-first iOS app positioned for App Store featuring ("your thoughts never leave this device").
 
-**Status:** Steps 1-6 complete (dataset, MLX verify, SFT, DPO, merge, eval, optimize, MLX convert, iOS refactor). Build 26 adds robust download error handling (auto-retry, stall detection, friendly error messages), extra takes IAP screenshot, and screenshot capture documentation. **Next: Step 7 — device testing.**
+**Status:** Steps 1-6 complete (dataset, MLX verify, SFT, DPO, merge, eval, optimize, MLX convert, iOS refactor). Build 27 adds open-source licenses screen, enhanced App Store screenshots with marketing headlines, and updated support page. **Next: Step 7 — device testing.**
 
 Key tech choices:
 - **Model:** Qwen 3.5 4B only (2B dropped — insufficient comprehension) — Gated DeltaNet architecture
@@ -299,7 +299,7 @@ All 5 Android IAP products are created in Google Play Console:
 - 7 backend tests in `test_subscription.py` (mocked validators)
 
 ### Current Build Numbers
-- iOS: v1.0.0 build 26 (robust download error handling, extra takes IAP screenshot, screenshot docs)
+- iOS: v1.0.0 build 27 (open-source licenses, enhanced screenshots, support page update)
 - Android: versionCode 6 (Internal Testing, DRAFT status — still cloud API)
 
 ## Tech Stacks

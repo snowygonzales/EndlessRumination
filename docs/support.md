@@ -10,7 +10,7 @@ Describe what's on your mind (20+ words), and the app generates perspectives fro
 That's the point. Worries feel permanent, but they pass. The disappearing mechanic mirrors this — helping you let go instead of looping.
 
 **What's the difference between Free and Pro?**
-Free gives you 5 perspectives per problem (3 submissions/month). Pro ($9.99/month) unlocks all 20 perspectives, a premium AI model, saved history, and no ads.
+Free gives you 5 perspectives per problem (2 per day, 10 per month). Pro ($9.99/month) unlocks unlimited submissions, all 20 perspectives, lets you choose which voices to hear, revisit takes by swiping back, and copy text.
 
 **Why does my input need to be at least 20 words?**
 More detail means better, more relevant perspectives. Generic input produces generic takes — we want every response to engage deeply with your specific situation.
@@ -21,7 +21,7 @@ No. Endless Rumination is a creative thinking tool, not a substitute for profess
 - **Crisis Text Line** — text HOME to 741741
 
 **How is my data handled?**
-Free-tier problem text is processed in memory and never stored. Pro subscribers can save history. See our [Privacy Policy](https://github.com/snowygonzales/EndlessRumination/blob/master/docs/privacy-policy.md) for full details.
+Your problem text is processed entirely on your device by the on-device AI model and is never transmitted to any server. See our [Privacy Policy](https://github.com/snowygonzales/EndlessRumination/blob/master/docs/privacy-policy.md) for full details.
 
 ## Contact
 
@@ -31,4 +31,4 @@ For support, feedback, or data requests:
 
 ---
 
-*Endless Rumination is an independent project. It is not affiliated with Anthropic.*
+*Endless Rumination is an independent project. AI processing is performed entirely on your device.*

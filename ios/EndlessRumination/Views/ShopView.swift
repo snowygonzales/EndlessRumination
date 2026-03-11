@@ -211,10 +211,20 @@ struct ShopView: View {
             HStack(spacing: 16) {
                 Link("Privacy Policy", destination: URL(string: "https://github.com/snowygonzales/EndlessRumination/blob/master/docs/privacy-policy.md")!)
                 Link("Terms of Service", destination: URL(string: "https://github.com/snowygonzales/EndlessRumination/blob/master/docs/terms-of-service.md")!)
-                Link("Support", destination: URL(string: "https://github.com/snowygonzales/EndlessRumination/blob/master/docs/support.md")!)
             }
             .font(.system(size: 12))
             .foregroundStyle(ERColors.accentCool)
+
+            HStack(spacing: 16) {
+                Link("Support", destination: URL(string: "https://github.com/snowygonzales/EndlessRumination/blob/master/docs/support.md")!)
+                    .font(.system(size: 12))
+                    .foregroundStyle(ERColors.accentCool)
+                NavigationLink("Licenses") {
+                    LicensesView()
+                }
+                .font(.system(size: 12))
+                .foregroundStyle(ERColors.accentCool)
+            }
 
             Text("Not a substitute for professional mental health care.")
                 .font(.system(size: 10))
