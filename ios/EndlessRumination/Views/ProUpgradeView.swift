@@ -108,8 +108,8 @@ struct ProUpgradeView: View {
                         .lineSpacing(2)
 
                     HStack(spacing: 12) {
-                        Link("Privacy Policy", destination: URL(string: "https://github.com/snowygonzales/EndlessRumination/blob/master/docs/privacy-policy.md")!)
-                        Link("Terms of Service", destination: URL(string: "https://github.com/snowygonzales/EndlessRumination/blob/master/docs/terms-of-service.md")!)
+                        Link("Privacy Policy", destination: URL(string: "https://www.symmetry.ro/privacy.html")!)
+                        Link("Terms of Service", destination: URL(string: "https://www.symmetry.ro/terms.html")!)
                     }
                     .font(.system(size: 10))
                     .foregroundStyle(ERColors.accentCool)

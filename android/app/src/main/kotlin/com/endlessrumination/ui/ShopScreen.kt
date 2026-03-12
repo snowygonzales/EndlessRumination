@@ -142,7 +142,7 @@ fun ShopScreen(appState: AppState) {
                             fontSize = 12.sp,
                             color = ERColors.accentCool,
                             modifier = Modifier.clickable {
-                                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/snowygonzales/EndlessRumination/blob/master/docs/privacy-policy.md")))
+                                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://www.symmetry.ro/privacy.html")))
                             }
                         )
                         Text(
@@ -150,7 +150,7 @@ fun ShopScreen(appState: AppState) {
                             fontSize = 12.sp,
                             color = ERColors.accentCool,
                             modifier = Modifier.clickable {
-                                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/snowygonzales/EndlessRumination/blob/master/docs/terms-of-service.md")))
+                                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://www.symmetry.ro/terms.html")))
                             }
                         )
                         Text(
@@ -158,7 +158,7 @@ fun ShopScreen(appState: AppState) {
                             fontSize = 12.sp,
                             color = ERColors.accentCool,
                             modifier = Modifier.clickable {
-                                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/snowygonzales/EndlessRumination/blob/master/docs/support.md")))
+                                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://www.symmetry.ro/support.html")))
                             }
                         )
                     }

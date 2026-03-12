@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>symmetry.ro</title>
+    <meta name="description" content="Independent developer building privacy-first apps. Creator of Endless Rumination.">
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg: #0A0A0C;
+            --text: #F0ECE4;
+            --secondary: #8A8690;
+            --dim: #4A4650;
+            --warm: #E8653A;
+            --border: rgba(255,255,255,0.06);
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .container {
+            max-width: 640px;
+            margin: 0 auto;
+            padding: 0 24px;
+        }
+
+        /* Header */
+        header {
+            padding: 80px 0 0;
+            text-align: center;
+        }
+
+        h1 {
+            font-family: "New York", "Iowan Old Style", Georgia, "Times New Roman", serif;
+            font-size: 28px;
+            font-weight: 400;
+            letter-spacing: 0.01em;
+        }
+
+        .tagline {
+            color: var(--secondary);
+            font-size: 15px;
+            margin-top: 6px;
+        }
+
+        /* Divider */
+        .divider {
+            height: 1px;
+            background: var(--border);
+            margin: 48px 0;
+        }
+
+        /* App card */
+        .app-card {
+            display: flex;
+            gap: 20px;
+            align-items: flex-start;
+            padding-top: 80px;
+        }
+
+        .app-icon {
+            width: 80px;
+            height: 80px;
+            border-radius: 18px;
+            flex-shrink: 0;
+        }
+
+        .app-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .app-name {
+            font-family: "New York", "Iowan Old Style", Georgia, "Times New Roman", serif;
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        .app-pitch {
+            color: var(--secondary);
+            font-size: 14px;
+            margin-top: 4px;
+            line-height: 1.5;
+        }
+
+        .app-privacy {
+            font-size: 12px;
+            color: var(--dim);
+            margin-top: 8px;
+            letter-spacing: 0.02em;
+        }
+
+        .store-badge {
+            display: inline-block;
+            margin-top: 14px;
+            padding: 8px 16px;
+            border: 1px solid var(--dim);
+            border-radius: 8px;
+            color: var(--text);
+            text-decoration: none;
+            font-size: 12px;
+            letter-spacing: 0.03em;
+            transition: border-color 0.2s;
+        }
+
+        .store-badge:hover {
+            border-color: var(--secondary);
+        }
+
+        /* Principles */
+        .principles h2 {
+            font-family: "New York", "Iowan Old Style", Georgia, "Times New Roman", serif;
+            font-size: 16px;
+            font-weight: 400;
+            color: var(--dim);
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            font-variant: small-caps;
+            margin-bottom: 20px;
+        }
+
+        .principles ul {
+            list-style: none;
+        }
+
+        .principles li {
+            font-size: 15px;
+            color: var(--secondary);
+            padding: 6px 0;
+        }
+
+        .principles li::before {
+            content: "";
+            display: inline-block;
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--warm);
+            margin-right: 12px;
+            vertical-align: middle;
+            opacity: 0.6;
+        }
+
+        /* Footer */
+        footer {
+            padding: 48px 0 80px;
+            text-align: center;
+        }
+
+        footer a {
+            color: var(--secondary);
+            text-decoration: none;
+            font-size: 14px;
+            transition: color 0.2s;
+        }
+
+        footer a:hover {
+            color: var(--text);
+        }
+
+        .footer-links {
+            margin-top: 12px;
+        }
+
+        .footer-links a {
+            color: var(--dim);
+            font-size: 12px;
+        }
+
+        .footer-links .dot {
+            color: var(--dim);
+            font-size: 12px;
+            margin: 0 6px;
+        }
+
+        .copyright {
+            color: var(--dim);
+            font-size: 12px;
+            margin-top: 16px;
+        }
+
+        /* Responsive */
+        @media (max-width: 480px) {
+            header { padding-top: 48px; }
+            h1 { font-size: 24px; }
+            .app-card { gap: 16px; }
+            .app-icon { width: 64px; height: 64px; border-radius: 14px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+
+    <!-- Apps -->
+    <div class="app-card">
+        <img class="app-icon" src="appicon.png" alt="Endless Rumination app icon" width="80" height="80">
+        <div class="app-info">
+            <div class="app-name">Endless Rumination</div>
+            <p class="app-pitch">Describe what's heavy. Get 20 fresh perspectives from AI personas that think nothing like you.</p>
+            <p class="app-privacy">All processing happens on your device. Your thoughts never leave your phone.</p>
+            <a class="store-badge" href="https://apps.apple.com/app/endless-rumination/id6759647755">Download on the App Store</a>
+        </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- Principles -->
+    <div class="principles">
+        <h2>What I believe in</h2>
+        <ul>
+            <li>Privacy by design.</li>
+            <li>Small, focused apps that do one thing well.</li>
+            <li>Indie software, built with care.</li>
+        </ul>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- Footer -->
+    <footer>
+        <a href="mailto:endless-support@symmetry.ro">endless-support@symmetry.ro</a>
+        <div class="footer-links">
+            <a href="/privacy.html">Privacy</a>
+            <span class="dot">&middot;</span>
+            <a href="/terms.html">Terms</a>
+            <span class="dot">&middot;</span>
+            <a href="/support.html">Support</a>
+        </div>
+        <p class="copyright">&copy; 2026 Bogdan Lucaci</p>
+    </footer>
+
+</div>
+
+</body>
+</html>

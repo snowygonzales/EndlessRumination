@@ -43,12 +43,12 @@ struct AIConsentView: View {
 
                 // Links
                 VStack(spacing: 8) {
-                    Link(destination: URL(string: "https://github.com/snowygonzales/EndlessRumination/blob/master/docs/privacy-policy.md")!) {
+                    Link(destination: URL(string: "https://www.symmetry.ro/privacy.html")!) {
                         Text("Privacy Policy")
                             .font(.system(size: 13))
                             .foregroundStyle(ERColors.accentCool)
                     }
-                    Link(destination: URL(string: "https://github.com/snowygonzales/EndlessRumination/blob/master/docs/terms-of-service.md")!) {
+                    Link(destination: URL(string: "https://www.symmetry.ro/terms.html")!) {
                         Text("Terms of Service")
                             .font(.system(size: 13))
                             .foregroundStyle(ERColors.accentCool)

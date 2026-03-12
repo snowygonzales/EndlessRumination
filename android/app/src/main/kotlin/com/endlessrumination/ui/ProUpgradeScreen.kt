@@ -185,7 +185,7 @@ fun ProUpgradeScreen(appState: AppState) {
                         fontSize = 10.sp,
                         color = ERColors.accentCool,
                         modifier = Modifier.clickable {
-                            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/snowygonzales/EndlessRumination/blob/master/docs/privacy-policy.md")))
+                            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://www.symmetry.ro/privacy.html")))
                         }
                     )
                     Text(
@@ -193,7 +193,7 @@ fun ProUpgradeScreen(appState: AppState) {
                         fontSize = 10.sp,
                         color = ERColors.accentCool,
                         modifier = Modifier.clickable {
-                            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/snowygonzales/EndlessRumination/blob/master/docs/terms-of-service.md")))
+                            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://www.symmetry.ro/terms.html")))
                         }
                     )
                 }

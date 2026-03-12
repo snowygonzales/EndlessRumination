@@ -21,7 +21,7 @@ No. Endless Rumination is a creative thinking tool, not a substitute for profess
 - **Crisis Text Line** — text HOME to 741741
 
 **How is my data handled?**
-Your problem text is processed entirely on your device by the on-device AI model and is never transmitted to any server. See our [Privacy Policy](https://github.com/snowygonzales/EndlessRumination/blob/master/docs/privacy-policy.md) for full details.
+Your problem text is processed entirely on your device by the on-device AI model and is never transmitted to any server. See our [Privacy Policy](https://www.symmetry.ro/privacy.html) for full details.
 
 ## Contact
 

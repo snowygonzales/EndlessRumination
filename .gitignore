@@ -65,3 +65,5 @@ models/
 *.gguf
 *.mlmodelc
 .mlx-venv/
+unsloth_compiled_cache/
+training_steps.docx

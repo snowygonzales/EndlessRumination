@@ -11,7 +11,7 @@ Psychology app with two independent native frontends (SwiftUI iOS + Jetpack Comp
 
 Pivoting from cloud Claude API to fully on-device inference using fine-tuned **Qwen 3.5 4B** via **Apple MLX**. Goal: privacy-first iOS app positioned for App Store featuring ("your thoughts never leave this device").
 
-**Status:** Steps 1-6 complete (dataset, MLX verify, SFT, DPO, merge, eval, optimize, MLX convert, iOS refactor). Build 27 adds open-source licenses screen, enhanced App Store screenshots with marketing headlines, and updated support page. **Next: Step 7 — device testing.**
+**Status:** Steps 1-6 complete (dataset, MLX verify, SFT, DPO, merge, eval, optimize, MLX convert, iOS refactor). Build 27 adds open-source licenses screen, enhanced App Store screenshots with marketing headlines, and updated support page. Build 28 migrates all legal docs from GitHub to symmetry.ro and updates all in-app URLs. **Next: Step 7 — device testing.**
 
 Key tech choices:
 - **Model:** Qwen 3.5 4B only (2B dropped — insufficient comprehension) — Gated DeltaNet architecture
@@ -80,6 +80,7 @@ EndlessRumination/
 │   ├── create_asc_products.py  # IAP product creation (App Store Connect)
 │   ├── create_extra_takes_product.py  # Consumable IAP creation (App Store Connect)
 │   ├── create_play_products.py # IAP product creation (Google Play)
+│   ├── enhance_screenshots.py  # App Store screenshot enhancer (Pillow)
 │   ├── distillation/           # Dataset generation pipeline (Mac, steps 1.1-1.6)
 │   ├── training/               # Fine-tuning scripts (PC/WSL2, steps 3-4)
 │   └── evaluation/             # Gradio eval UI (PC/WSL2, step 4.4)
@@ -87,7 +88,8 @@ EndlessRumination/
 ├── models/                     # Trained models + MLX exports (gitignored)
 ├── .mlx-venv/                  # Python 3.12 venv for MLX (gitignored)
 ├── multiplatform/              # ARCHIVED — KMP reference code only
-├── docs/                       # Privacy policy, ToS, support, release checklist, screenshot capture guide
+├── docs/                       # Markdown docs (privacy, ToS, support), release checklist, screenshots
+│   └── site/                   # symmetry.ro website (HTML pages, app icon)
 ├── experiment_steps.md         # On-device inference pipeline guide
 ├── CLAUDE.md
 └── KICKOFF.md
@@ -113,12 +115,13 @@ EndlessRumination/
 ### Cloud Infrastructure
 - **Production API**: https://backend-production-5537.up.railway.app
 - **Railway dashboard**: https://railway.com/project/30951286-357e-4529-a21c-bb527d62eb13
-- **Privacy policy**: https://github.com/snowygonzales/EndlessRumination/blob/master/docs/privacy-policy.md
-- **Terms of Service**: https://github.com/snowygonzales/EndlessRumination/blob/master/docs/terms-of-service.md
-- **Support page**: https://github.com/snowygonzales/EndlessRumination/blob/master/docs/support.md
+- **Website**: https://www.symmetry.ro — indie dev landing page + all legal docs
+- **Privacy policy**: https://www.symmetry.ro/privacy.html (source: `docs/site/privacy.html`)
+- **Terms of Service**: https://www.symmetry.ro/terms.html (source: `docs/site/terms.html`)
+- **Support page**: https://www.symmetry.ro/support.html (source: `docs/site/support.html`)
 - **Release checklist**: `docs/release_todo.md` — manual console tasks remaining before launch
 - **Screenshot capture guide**: `docs/screenshot-capture.md` — automated simulator screenshot procedure with locale setup, all screen names, and batch capture script
-- **GitHub repo**: Public (required for reviewer-accessible privacy policy/ToS URLs)
+- **GitHub repo**: Public (markdown copies of docs kept in `docs/` for reference)
 - iOS debug builds → localhost:8000, release builds → Railway URL
 - Android always uses Railway production URL
 
@@ -142,6 +145,7 @@ EndlessRumination/
 - `ios/EndlessRumination/Services/UsageLimiter.swift` — Rate limiting: anti-abuse burst (8/30min) + free-tier caps (2/day, 10/month)
 - `ios/EndlessRumination/Models/` — Take, Lens, VoicePack, LensPrompts
 - `ios/EndlessRumination/Views/LensPickerView.swift` — Pro toggleable capsule grid for lens selection with per-section controls
+- `ios/EndlessRumination/Views/LicensesView.swift` — Open-source licenses screen (12 dependencies, expandable MIT/Apache 2.0 text)
 - `ios/EndlessRumination/Views/` — All screens + AIConsentView, OnboardingView, LoadingView (with interrupt recovery)
 - `ios/EndlessRumination/Theme/` — ERColors, ERTypography, ERAnimations
 
@@ -176,6 +180,14 @@ EndlessRumination/
 - `scripts/create_asc_products.py` — Creates/updates all IAP products in App Store Connect via REST API (JWT auth, idempotent)
 - `scripts/create_extra_takes_product.py` — Creates the "3 Extra Perspectives" consumable IAP ($0.99) in App Store Connect
 - `scripts/create_play_products.py` — Creates subscription in Google Play via API (voice packs require Play Console UI)
+- `scripts/enhance_screenshots.py` — Pillow script: composites marketing headlines + dark background onto raw screenshots for App Store
+
+### Website (docs/site/)
+- `docs/site/index.html` — symmetry.ro landing page (indie dev profile + Endless Rumination card)
+- `docs/site/privacy.html` — HTML privacy policy (hosted at symmetry.ro/privacy.html)
+- `docs/site/terms.html` — HTML terms of service (hosted at symmetry.ro/terms.html)
+- `docs/site/support.html` — HTML support/FAQ page (hosted at symmetry.ro/support.html)
+- `docs/site/appicon.png` — 160x160 web-optimized app icon
 
 ### Distillation Scripts (on-device experiment, Mac)
 - `scripts/distillation/cost_tracker.py` — Shared $100 pipeline budget tracker (`data/.pipeline_cost_tracker.json`)
@@ -299,8 +311,8 @@ All 5 Android IAP products are created in Google Play Console:
 - 7 backend tests in `test_subscription.py` (mocked validators)
 
 ### Current Build Numbers
-- iOS: v1.0.0 build 27 (open-source licenses, enhanced screenshots, support page update)
-- Android: versionCode 6 (Internal Testing, DRAFT status — still cloud API)
+- iOS: v1.0.0 build 28 (migrate legal docs to symmetry.ro, update all in-app URLs)
+- Android: versionCode 6 (Internal Testing, DRAFT status — still cloud API, URLs updated to symmetry.ro)
 
 ## Tech Stacks
 
@@ -323,15 +335,15 @@ All 5 Android IAP products are created in Google Play Console:
 
 ## Launch Compliance (both platforms)
 All code-level app store compliance items are implemented:
-- **AI consent dialog** — Names Anthropic/Claude, gates first problem submission (UserDefaults/SharedPreferences)
+- **AI consent dialog** — On-device AI disclosure, gates first problem submission (UserDefaults/SharedPreferences)
 - **Content report/flag** — Flag icon on take cards with confirmation dialog
 - **Medical disclaimer** — "Not a substitute for professional mental health care" on input + shop screens
 - **ATT prompt** — iOS: `ATTrackingManager.requestTrackingAuthorization` on app become active
 - **AD_ID permission** — Android: `com.google.android.gms.permission.AD_ID` in manifest
 - **Subscription terms** — Full auto-renewal/cancellation disclosure on paywall + Privacy Policy/ToS links
 - **Account deletion** — Removed from on-device version (no backend account to delete); cloud version had mailto: flow
-- **Privacy Policy** — Accurate AdMob, AI processing, GDPR/CCPA disclosures (`docs/privacy-policy.md`)
-- **Terms of Service** — AI content disclaimer, subscription terms, liability limits (`docs/terms-of-service.md`)
+- **Privacy Policy** — On-device AI, zero-tracking, GDPR/CCPA disclosures (hosted at symmetry.ro/privacy.html)
+- **Terms of Service** — AI content disclaimer, subscription terms, liability limits (hosted at symmetry.ro/terms.html)
 - **Remaining manual tasks** — See `docs/release_todo.md`
 
 ## Deployment Rules

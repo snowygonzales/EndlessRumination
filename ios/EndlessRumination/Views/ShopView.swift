@@ -209,14 +209,14 @@ struct ShopView: View {
         VStack(spacing: 12) {
             // Links
             HStack(spacing: 16) {
-                Link("Privacy Policy", destination: URL(string: "https://github.com/snowygonzales/EndlessRumination/blob/master/docs/privacy-policy.md")!)
-                Link("Terms of Service", destination: URL(string: "https://github.com/snowygonzales/EndlessRumination/blob/master/docs/terms-of-service.md")!)
+                Link("Privacy Policy", destination: URL(string: "https://www.symmetry.ro/privacy.html")!)
+                Link("Terms of Service", destination: URL(string: "https://www.symmetry.ro/terms.html")!)
             }
             .font(.system(size: 12))
             .foregroundStyle(ERColors.accentCool)
 
             HStack(spacing: 16) {
-                Link("Support", destination: URL(string: "https://github.com/snowygonzales/EndlessRumination/blob/master/docs/support.md")!)
+                Link("Support", destination: URL(string: "https://www.symmetry.ro/support.html")!)
                     .font(.system(size: 12))
                     .foregroundStyle(ERColors.accentCool)
                 NavigationLink("Licenses") {

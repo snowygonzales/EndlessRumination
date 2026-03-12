@@ -58,5 +58,5 @@ Requires iPhone 12 Pro or later (6 GB RAM minimum). iOS 18 required.
 
 Pro subscription is $9.99/month. Payment is charged to your Apple ID at confirmation. Subscription auto-renews monthly unless cancelled at least 24 hours before the end of the current period. Manage in Settings > Subscriptions. Voice packs are $4.99 each, one-time purchase.
 
-Privacy Policy: https://github.com/snowygonzales/EndlessRumination/blob/master/docs/privacy-policy.md
-Terms of Service: https://github.com/snowygonzales/EndlessRumination/blob/master/docs/terms-of-service.md
+Privacy Policy: https://www.symmetry.ro/privacy.html
+Terms of Service: https://www.symmetry.ro/terms.html

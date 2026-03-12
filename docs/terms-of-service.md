@@ -59,7 +59,7 @@ You agree not to:
 
 ## 9. Privacy
 
-Your use of the App is also governed by our [Privacy Policy](https://github.com/snowygonzales/EndlessRumination/blob/master/docs/privacy-policy.md), which describes how we protect your data. Your problem text never leaves your device.
+Your use of the App is also governed by our [Privacy Policy](https://www.symmetry.ro/privacy.html), which describes how we protect your data. Your problem text never leaves your device.
 
 ## 10. Disclaimers
 
