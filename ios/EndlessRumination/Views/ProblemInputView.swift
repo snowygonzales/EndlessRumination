@@ -62,6 +62,10 @@ struct ProblemInputView: View {
                     .onTapGesture(count: 3) {
                         appState.debugTogglePro()
                     }
+                    .onLongPressGesture(minimumDuration: 2) {
+                        appState.debugResetAllData()
+                        UINotificationFeedbackGenerator().notificationOccurred(.warning)
+                    }
                     #endif
                 }
                 .padding(.horizontal, 24)
@@ -184,7 +188,7 @@ struct ProblemInputView: View {
                     HStack(spacing: 4) {
                         Image(systemName: "circle.grid.2x1.fill")
                             .font(.system(size: 8))
-                        Text("\(UsageLimiter.freeDailyRemaining)/\(UsageLimiter.freeDailyLimit) today  \u{00B7}  \(UsageLimiter.freeMonthlyRemaining)/\(UsageLimiter.freeMonthlyLimit) this month")
+                        Text("\(UsageLimiter.submissionsToday())/\(UsageLimiter.freeDailyLimit) today  \u{00B7}  \(UsageLimiter.submissionsThisMonth())/\(UsageLimiter.freeMonthlyLimit) this month")
                             .font(.system(size: 11))
                     }
                     .foregroundStyle(ERColors.dimText)
@@ -241,6 +245,15 @@ struct ProblemInputView: View {
         }
         .onChange(of: appState.isPro) {
             refreshLimits()
+        }
+        .onChange(of: appState.showAIConsent) {
+            // Auto-continue submission after AI consent dialog is dismissed.
+            // Deferred via Task to escape the withAnimation transaction in AIConsentView.
+            if !appState.showAIConsent && appState.hasConsentedAI && appState.canSubmit {
+                Task { @MainActor in
+                    submit()
+                }
+            }
         }
     }
 

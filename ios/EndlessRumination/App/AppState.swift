@@ -54,9 +54,7 @@ final class AppState {
     /// On-device inference engine (shared across the app lifecycle).
     var inferenceEngine: InferenceEngine = InferenceEngine()
 
-    var hasConsentedAI: Bool {
-        UserDefaults.standard.bool(forKey: Self.hasConsentedAIKey)
-    }
+    var hasConsentedAI: Bool = false
 
     /// Whether the on-device model is downloaded and ready for inference.
     var isModelReady: Bool {
@@ -71,6 +69,7 @@ final class AppState {
     init() {
         let hasSeen = UserDefaults.standard.bool(forKey: Self.hasSeenOnboardingKey)
         showOnboarding = !hasSeen
+        hasConsentedAI = UserDefaults.standard.bool(forKey: Self.hasConsentedAIKey)
         loadSelectedLenses()
     }
 
@@ -80,8 +79,9 @@ final class AppState {
     }
 
     func consentToAI() {
-        showAIConsent = false
+        hasConsentedAI = true
         UserDefaults.standard.set(true, forKey: Self.hasConsentedAIKey)
+        showAIConsent = false
     }
 
     var wordCount: Int {
@@ -98,7 +98,10 @@ final class AppState {
     var isOverLimit: Bool { wordCount > Self.maxWords }
 
     var currentLens: Lens {
-        Lens.lens(at: currentTakeIndex)
+        if let take = currentTake {
+            return Lens.lens(at: take.lensIndex)
+        }
+        return Lens.lens(at: currentTakeIndex)
     }
 
     var currentTake: Take? {
@@ -166,6 +169,22 @@ final class AppState {
     func debugTogglePro() {
         subscriptionTier = isPro ? .free : .pro
     }
+
+    /// Wipe all UserDefaults (usage counters, consent, onboarding, lens selection)
+    /// without uninstalling the app — keeps the cached AI model intact.
+    func debugResetAllData() {
+        let domain = Bundle.main.bundleIdentifier!
+        UserDefaults.standard.removePersistentDomain(forName: domain)
+        UserDefaults.standard.synchronize()
+
+        // Reset in-memory state to match
+        showOnboarding = true
+        showAIConsent = false
+        hasConsentedAI = false
+        selectedLensIndices = nil
+        subscriptionTier = .free
+        reset()
+    }
     #endif
 
     // MARK: - Lens Selection Persistence
@@ -184,8 +203,14 @@ final class AppState {
         }
     }
 
+    /// All possible lens indices (base 0-19 + pack slots 20-39).
+    /// Used when initializing selectedLensIndices from nil to avoid race conditions
+    /// with pack entitlements loading — allAvailableLensIndices may not include
+    /// pack voices yet, causing clearLenses to silently insert a base lens.
+    private static let allPossibleLensIndices = Set(0..<40)
+
     func toggleLens(_ index: Int) {
-        var current = selectedLensIndices ?? Set(allAvailableLensIndices)
+        var current = selectedLensIndices ?? Self.allPossibleLensIndices
 
         if current.contains(index) {
             // Don't allow deselecting the last lens
@@ -201,17 +226,18 @@ final class AppState {
     }
 
     func selectAllLenses(in indices: [Int]) {
-        var current = selectedLensIndices ?? Set(allAvailableLensIndices)
+        var current = selectedLensIndices ?? Self.allPossibleLensIndices
         for i in indices { current.insert(i) }
         selectedLensIndices = current
         saveSelectedLenses()
     }
 
     func clearLenses(in indices: [Int], keepMinimum: Bool = true) {
-        var current = selectedLensIndices ?? Set(allAvailableLensIndices)
+        var current = selectedLensIndices ?? Self.allPossibleLensIndices
         for i in indices { current.remove(i) }
-        // Ensure at least 1 lens remains
-        if current.isEmpty, let first = allAvailableLensIndices.first {
+        // Ensure at least 1 lens remains (from the available set, not arbitrary base lens)
+        if current.intersection(Set(allAvailableLensIndices)).isEmpty,
+           let first = allAvailableLensIndices.first {
             current.insert(first)
         }
         selectedLensIndices = current

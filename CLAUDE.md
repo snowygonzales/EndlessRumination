@@ -11,7 +11,7 @@ Psychology app with two independent native frontends (SwiftUI iOS + Jetpack Comp
 
 Pivoting from cloud Claude API to fully on-device inference using fine-tuned **Qwen 3.5 4B** via **Apple MLX**. Goal: privacy-first iOS app positioned for App Store featuring ("your thoughts never leave this device").
 
-**Status:** Steps 1-6 complete (dataset, MLX verify, SFT, DPO, merge, eval, optimize, MLX convert, iOS refactor). Build 27 adds open-source licenses screen, enhanced App Store screenshots with marketing headlines, and updated support page. Build 28 migrates all legal docs from GitHub to symmetry.ro and updates all in-app URLs. **Next: Step 7 — device testing.**
+**Status:** Steps 1-6 complete (dataset, MLX verify, SFT, DPO, merge, eval, optimize, MLX convert, iOS refactor). Build 29 fixes AI consent auto-continue flow, lens selection race condition, usage counter display, removes redundant free counter UI, and adds debug reset cheat. **Next: Step 7 — device testing.**
 
 Key tech choices:
 - **Model:** Qwen 3.5 4B only (2B dropped — insufficient comprehension) — Gated DeltaNet architecture
@@ -219,7 +219,7 @@ EndlessRumination/
 - API cost: ~$0.01/free submission (1 Sonnet + 4 Haiku), ~$0.12/Pro submission (20 Sonnet), ~$0.025 per pack (5 Sonnet)
 - Backend config `free_sonnet_lens_indices: [1, 9]` marks which lenses use Sonnet for free users — but free users only access indices 0-4, so only index 1 is effectively Sonnet
 - "Wise" badge on Sonnet takes (including all pack voices), "Quick take · Powered by Haiku" on Haiku takes
-- Triple-tap Shop button in DEBUG builds to toggle Pro status (simulator cheat)
+- Triple-tap Shop button in DEBUG builds to toggle Pro status; long-press Shop (2 sec) to reset all data (clears UserDefaults without uninstall, preserves cached model)
 - Voice pack indices 20-39 extend the base lens system; `Lens.displayInfo(index)` provides unified lookup (Kotlin), `Lens.displayInfo(at:)` (Swift)
 - State-based nav: `AppScreen` enum + `when` (Kotlin) / `switch` (Swift)
 
@@ -311,7 +311,7 @@ All 5 Android IAP products are created in Google Play Console:
 - 7 backend tests in `test_subscription.py` (mocked validators)
 
 ### Current Build Numbers
-- iOS: v1.0.0 build 28 (migrate legal docs to symmetry.ro, update all in-app URLs)
+- iOS: v1.0.0 build 29 (consent auto-continue, lens selection fix, usage counter fix, debug reset cheat)
 - Android: versionCode 6 (Internal Testing, DRAFT status — still cloud API, URLs updated to symmetry.ro)
 
 ## Tech Stacks
@@ -372,3 +372,4 @@ All code-level app store compliance items are implemented:
 - Don't forget the vocab pruning limitation: the optimized model's BPE tokenizer cannot encode non-ASCII characters. User input should be sanitized to ASCII before tokenization. Future fix: re-run `optimize_for_device.py` with byte tokens forced to keep.
 - Don't use ternary with `.textSelection()` — `.enabled` returns `EnabledTextSelectability` and `.disabled` returns `DisabledTextSelectability` (different types). Use conditional `if/else` branches instead.
 - Don't hardcode voice pack prices (e.g., `"$4.99"`) — use `subscriptionManager.packDisplayPrice()` for locale-aware formatting
+- Don't use computed properties backed by UserDefaults on `@Observable` classes when SwiftUI needs to observe changes — `@Observable` only tracks stored properties. Use a stored property loaded in `init()` and updated alongside UserDefaults writes.

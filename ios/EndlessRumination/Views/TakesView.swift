@@ -45,8 +45,8 @@ struct TakesView: View {
                     InstructionOverlayView()
                 }
 
-                // Swipe hint at bottom
-                if !appState.showInstructionOverlay && fadeState == .visible {
+                // Swipe hint at bottom (hidden when extra takes prompt or end-of-run is showing)
+                if !appState.showInstructionOverlay && fadeState == .visible && (appState.isPro || appState.freeTakesRemaining > 0) {
                     swipeHint
                 }
 
@@ -177,16 +177,6 @@ struct TakesView: View {
                         }
                     }
                     .font(.system(size: 11, design: .monospaced))
-                } else if appState.freeTakesRemaining <= 3 {
-                    HStack(spacing: 4) {
-                        Text("\(appState.freeTakesRemaining)")
-                            .foregroundStyle(ERColors.accentGold)
-                        Text("free takes remaining")
-                            .foregroundStyle(ERColors.dimText)
-                    }
-                    .font(.system(size: 11, design: .monospaced))
-                } else {
-                    EmptyView()
                 }
             }
             .padding(.bottom, 4)
