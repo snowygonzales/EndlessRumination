@@ -47,7 +47,7 @@ Min iOS: 18.0
 - [ ] Select content descriptors in App Store Connect:
   - No violence, no mature themes, no gambling
   - "Infrequent/Mild" for Medical/Treatment Information
-  - Consider "17+" due to mental health content sensitivity
+  - Target age rating: **13+** (app explicitly disclaims being a mental health tool)
 
 ### M4. Store Listing (MANUAL)
 - [ ] Write and upload to App Store Connect:
