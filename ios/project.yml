@@ -21,6 +21,8 @@ targets:
       - EndlessRumination
     entitlements:
       path: EndlessRumination/EndlessRumination.entitlements
+      properties:
+        com.apple.developer.kernel.increased-memory-limit: true
     info:
       path: EndlessRumination/Info.plist
       properties:
