@@ -62,10 +62,13 @@ struct ProblemInputView: View {
                     .onTapGesture(count: 3) {
                         appState.debugTogglePro()
                     }
-                    .onLongPressGesture(minimumDuration: 2) {
-                        appState.debugResetAllData()
-                        UINotificationFeedbackGenerator().notificationOccurred(.warning)
-                    }
+                    .simultaneousGesture(
+                        LongPressGesture(minimumDuration: 2)
+                            .onEnded { _ in
+                                appState.debugResetAllData()
+                                UINotificationFeedbackGenerator().notificationOccurred(.warning)
+                            }
+                    )
                     #endif
                 }
                 .padding(.horizontal, 24)

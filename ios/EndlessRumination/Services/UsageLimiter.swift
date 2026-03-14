@@ -144,6 +144,13 @@ enum UsageLimiter {
         max(0, freeMonthlyLimit - submissionsThisMonth())
     }
 
+    /// Clear all usage data (for debug reset).
+    static func resetAll() {
+        UserDefaults.standard.removeObject(forKey: timestampsKey)
+        UserDefaults.standard.removeObject(forKey: cooldownUntilKey)
+        log.info("Usage data reset")
+    }
+
     // MARK: - Private
 
     private static func allTimestamps() -> [TimeInterval] {

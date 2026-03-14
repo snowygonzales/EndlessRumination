@@ -173,6 +173,9 @@ final class AppState {
     /// Wipe all UserDefaults (usage counters, consent, onboarding, lens selection)
     /// without uninstalling the app — keeps the cached AI model intact.
     func debugResetAllData() {
+        // Explicitly clear usage limiter (removePersistentDomain can miss these on device)
+        UsageLimiter.resetAll()
+
         let domain = Bundle.main.bundleIdentifier!
         UserDefaults.standard.removePersistentDomain(forName: domain)
         UserDefaults.standard.synchronize()
